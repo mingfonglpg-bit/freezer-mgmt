@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#bac3ff",
+                        "surface-container-high": "#262a31",
+                        "background": "#10141a",
+                        "on-background": "#dfe2eb",
+                        "surface-container-low": "#181c22",
+                        "on-surface": "#dfe2eb",
+                        "on-surface-variant": "#c6c5d3",
+                        "primary-container": "#5c6bc0",
+                        "error": "#ffb4ab"
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        #occupancyRing {
+            background: conic-gradient(#5c6bc0 0%, #1c2026 0);
+            transition: background 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .critical-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { border-color: rgba(255,180,171,0.2); } 50% { border-color: rgba(255,180,171,1); shadow: 0 0 15px rgba(255,180,171,0.3); } }
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+
+    <header class="fixed top-0 left-0 w-full z-50 bg-[#10141a]/80 backdrop-blur-xl flex justify-between items-center px-6 h-16 border-b border-white/5">
+        <div class="flex items-center gap-4">
+            <a class="material-symbols-outlined text-[#bac3ff] p-2 hover:bg-[#262a31] rounded-full transition-colors" href="settings.html">menu</a>
+            <h1 class="text-xl font-bold text-[#bac3ff]">倉儲監控總覽</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="statusDot" class="w-2 h-2 rounded-full bg-slate-600 animate-pulse"></div>
+            <span id="syncTime" class="text-[10px] text-on-surface-variant font-mono">READY</span>
+            <button onclick="updateDashboard()" class="material-symbols-outlined text-primary hover:rotate-180 transition-transform duration-700">sync</button>
+        </div>
+    </header>
+
+    <main class="pt-24 pb-12 px-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        <section class="md:col-span-8 space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div id="errorCard" class="bg-surface-container-low p-6 rounded-2xl border border-white/5 transition-all">
+                    <div class="flex justify-between items-start mb-4">
+                        <span id="errorIcon" class="material-symbols-outlined text-on-surface-variant text-4xl">verified_user</span>
+                        <span class="text-[10px] bg-white/5 px-2 py-1 rounded text-on-surface-variant font-mono">MONITOR_01</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-on-surface">異常狀態監控</h3>
+                    <p id="errorStatusLabel" class="text-sm text-on-surface-variant mt-1">掃描系統標籤中...</p>
+                    <div id="errorTagArea" class="mt-4 flex flex-wrap gap-2"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <a href="visual_status.html" class="bg-surface-container-low p-4 rounded-2xl border border-white/5 hover:bg-surface-container-high transition-colors text-center">
+                        <span class="material-symbols-outlined text-primary mb-2">grid_view</span>
+                        <p class="text-xs font-bold">平面地圖</p>
+                    </a>
+                    <a href="query.html" class="bg-surface-container-low p-4 rounded-2xl border border-white/5 hover:bg-surface-container-high transition-colors text-center">
+                        <span class="material-symbols-outlined text-primary mb-2">search</span>
+                        <p class="text-xs font-bold">庫存查詢</p>
+                    </a>
+                </div>
+            </div>
+
+            <div class="bg-surface-container-low rounded-2xl p-6 border border-white/5">
+                <h2 class="text-sm font-bold text-primary uppercase tracking-widest mb-6">即時異常日誌</h2>
+                <div id="logContainer" class="space-y-3">
+                    <p class="text-xs text-on-surface-variant italic">暫無待處理的異常回報</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="md:col-span-4 space-y-6">
+            <div class="bg-surface-container-low rounded-2xl p-8 flex flex-col items-center">
+                <h2 class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-8">全庫平均佔用率</h2>
+                <div class="relative w-48 h-48 mb-8">
+                    <div id="occupancyRing" class="absolute inset-0 rounded-full flex items-center justify-center p-4">
+                        <div class="bg-surface-container-low rounded-full w-full h-full flex flex-col items-center justify-center shadow-inner">
+                            <span id="percentText" class="text-5xl font-black text-on-surface">--</span>
+                            <span class="text-[10px] text-on-surface-variant font-bold mt-1 uppercase">Capacity</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 w-full">
+                    <div class="p-4 bg-background rounded-xl border border-white/5 text-center">
+                        <p class="text-[10px] text-on-surface-variant uppercase mb-1">可用儲位</p>
+                        <p id="availText" class="text-xl font-bold text-primary">--</p>
+                    </div>
+                    <div class="p-4 bg-background rounded-xl border border-white/5 text-center">
+                        <p class="text-[10px] text-on-surface-variant uppercase mb-1">異常標記</p>
+                        <p id="errorCount" class="text-xl font-bold text-on-surface-variant">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-primary-container/10 rounded-2xl p-6 border border-primary-container/20">
+                <div class="flex items-center gap-2 mb-4 text-primary">
+                    <span class="material-symbols-outlined animate-pulse">auto_awesome</span>
+                    <h3 class="font-bold">智能整理建議</h3>
+                </div>
+                <div id="aiContent" class="text-xs text-on-surface-variant leading-relaxed space-y-2">
+                    系統分析中...
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 請確保此處換成您部署後的 GAS URL，末端加上 ?action=dashboard
+        const API_URL = "https://script.google.com/macros/s/你的ID/exec?action=dashboard";
+
+        async function updateDashboard() {
+            const dot = document.getElementById('statusDot');
+            dot.className = "w-2 h-2 rounded-full bg-primary animate-ping";
+            
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                const inventory = data.inventory;
+                const configs = data.configs;
+
+                let totalCap = 0;
+                let totalOcc = 0;
+                let errors = [];
+
+                // 1. 核心計算邏輯
+                Object.keys(configs).forEach(zoneKey => {
+                    const maxRows = parseInt(configs[zoneKey].maxPos) || 0;
+                    const zoneCap = maxRows * 4; // 假設每排 4 層
+                    totalCap += zoneCap;
+
+                    // 篩選屬於該區的庫存
+                    const zoneItems = inventory.filter(item => item.zone === zoneKey);
+                    
+                    // 計算佔用數（去重，確保一格一物）
+                    const occupiedSet = new Set(zoneItems.map(i => i.pos));
+                    totalOcc += occupiedSet.size;
+
+                    // 偵測異常關鍵字
+                    zoneItems.forEach(item => {
+                        const str = (item.sku + item.comment).toLowerCase();
+                        if (str.includes('異常') || str.includes('報廢') || str.includes('移位')) {
+                            errors.push({ loc: `${item.zone} ${item.pos}`, msg: item.comment || "標記待查" });
+                        }
+                    });
+                });
+
+                // 2. 更新 UI
+                const percent = Math.round((totalOcc / totalCap) * 100) || 0;
+                document.getElementById('percentText').innerText = percent + "%";
+                document.getElementById('availText').innerText = (totalCap - totalOcc);
+                document.getElementById('occupancyRing').style.background = `conic-gradient(#5c6bc0 ${percent}%, #1c2026 0)`;
+                document.getElementById('syncTime').innerText = new Date().toLocaleTimeString();
+
+                // 3. 異常狀態更新
+                updateErrorUI(errors);
+                
+                // 4. AI 建議更新
+                updateAI(percent, errors.length);
+
+                dot.className = "w-2 h-2 rounded-full bg-success";
+            } catch (err) {
+                console.error(err);
+                dot.className = "w-2 h-2 rounded-full bg-error";
+            }
+        }
+
+        function updateErrorUI(errors) {
+            const card = document.getElementById('errorCard');
+            const icon = document.getElementById('errorIcon');
+            const label = document.getElementById('errorStatusLabel');
+            const count = document.getElementById('errorCount');
+            const logs = document.getElementById('logContainer');
+
+            count.innerText = errors.length;
+
+            if (errors.length > 0) {
+                card.classList.add('critical-pulse', 'border-error/50');
+                icon.innerText = "report_problem";
+                icon.className = "material-symbols-outlined text-error text-4xl";
+                label.innerText = `發現 ${errors.length} 項儲位異常`;
+                label.className = "text-sm text-error mt-1 font-bold";
+
+                logs.innerHTML = errors.map(e => `
+                    <div class="flex items-center gap-3 p-3 bg-error/5 rounded-xl border border-error/10">
+                        <span class="material-symbols-outlined text-error text-sm">warning</span>
+                        <div class="flex-1">
+                            <p class="text-xs font-bold text-on-surface">${e.loc}</p>
+                            <p class="text-[10px] text-on-surface-variant">${e.msg}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                card.classList.remove('critical-pulse', 'border-error/50');
+                icon.innerText = "verified_user";
+                icon.className = "material-symbols-outlined text-primary text-4xl";
+                label.innerText = "系統運作環境正常";
+                label.className = "text-sm text-on-surface-variant mt-1";
+                logs.innerHTML = `<p class="text-xs text-on-surface-variant italic px-2">暫無待處理的異常回報</p>`;
+            }
+        }
+
+        function updateAI(pct, errLen) {
+            const ai = document.getElementById('aiContent');
+            let advice = [];
+            if (errLen > 0) advice.push(`• 優先處理 <b>${errLen}</b> 項異常標記品，以釋放無效儲位。`);
+            if (pct > 85) advice.push(`• 庫容即將飽和 (${pct}%)，建議啟動 A 區移倉作業。`);
+            if (advice.length === 0) advice.push("• 目前運作效率良好，建議定期進行 A 區週轉率盤點。");
+            ai.innerHTML = advice.join('<br>');
+        }
+
+        window.onload = updateDashboard;
+    </script>
+</body>
+</html>
