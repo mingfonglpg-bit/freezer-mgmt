@@ -1,212 +1,142 @@
 <!DOCTYPE html>
-
-<html class="dark" lang="zh-TW"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+TC:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
+<html class="dark" lang="zh-Hant">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     "colors": {
-                        "on-tertiary-fixed-variant": "#3323cc",
                         "surface-container-high": "#262a31",
-                        "inverse-on-surface": "#2d3137",
                         "primary": "#bac3ff",
-                        "primary-fixed-dim": "#bac3ff",
-                        "inverse-surface": "#dfe2eb",
-                        "surface-dim": "#10141a",
                         "on-surface": "#dfe2eb",
-                        "on-tertiary": "#1d00a5",
-                        "tertiary-fixed-dim": "#c3c0ff",
-                        "on-primary-container": "#f8f6ff",
-                        "on-error": "#690005",
-                        "tertiary-container": "#615af7",
-                        "on-tertiary-container": "#f9f5ff",
-                        "surface-container-highest": "#31353c",
-                        "on-secondary-fixed": "#021355",
-                        "surface-container": "#1c2026",
-                        "on-background": "#dfe2eb",
-                        "primary-container": "#5c6bc0",
-                        "surface-variant": "#31353c",
-                        "secondary-fixed": "#dee1ff",
-                        "on-surface-variant": "#c6c5d3",
-                        "primary-fixed": "#dee0ff",
-                        "surface-bright": "#353940",
-                        "on-secondary": "#1d2b6a",
-                        "on-error-container": "#ffdad6",
-                        "on-primary-fixed-variant": "#2f3f92",
-                        "secondary": "#b9c3ff",
-                        "surface-container-lowest": "#0a0e14",
-                        "error": "#ffb4ab",
-                        "on-primary-fixed": "#00105b",
-                        "background": "#10141a",
-                        "outline": "#8f909d",
-                        "surface-container-low": "#181c22",
-                        "surface": "#10141a",
-                        "secondary-fixed-dim": "#b9c3ff",
+                        "surface-dim": "#10141a",
                         "outline-variant": "#454651",
-                        "secondary-container": "#374485",
-                        "inverse-primary": "#4858ab",
-                        "surface-tint": "#bac3ff",
-                        "error-container": "#93000a",
-                        "on-primary": "#15267b",
-                        "tertiary-fixed": "#e2dfff",
-                        "on-secondary-container": "#a7b4fd",
-                        "tertiary": "#c3c0ff",
-                        "on-tertiary-fixed": "#0f0069",
-                        "on-secondary-fixed-variant": "#354282"
-                    },
-                    "borderRadius": {
-                        "DEFAULT": "1rem",
-                        "lg": "2rem",
-                        "xl": "3rem",
-                        "full": "9999px"
-                    },
-                    "fontFamily": {
-                        "headline": ["Inter", "Noto Sans TC"],
-                        "body": ["Inter", "Noto Sans TC"],
-                        "label": ["Inter", "Noto Sans TC"]
+                        "primary-container": "#5c6bc0"
                     }
-                },
+                }
             }
         }
     </script>
-<style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
-        .circular-progress {
-            background: conic-gradient(#5c6bc0 78%, #1c2026 0);
-        }
+    <style>
+        body { background-color: #10141a; color: #dfe2eb; font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
     </style>
-<style>
-    body {
-      min-height: max(884px, 100dvh);
-    }
-  </style>
 </head>
-<body class="bg-background text-on-background font-body min-h-screen">
-<header class="fixed top-0 left-0 w-full z-50 bg-[#10141a]/80 backdrop-blur-xl flex justify-between items-center px-6 h-16 transition-colors no-border tonal-shift">
-<div class="flex items-center gap-4">
-<a class="material-symbols-outlined text-[#bac3ff] hover:bg-[#262a31] p-2 rounded-full transition-colors" data-icon="menu" href="settings.html">menu</a>
-<h1 class="font-['Inter','PingFang_TC'] headline-medium tracking-tight text-xl font-bold text-[#bac3ff] cursor-pointer" onclick="window.location.href='settings.html'">倉儲庫位控管系統</h1>
-</div>
-<div class="flex items-center gap-4">
-<span class="font-['Inter','PingFang_TC'] headline-medium tracking-tight text-[#c3c0ff] text-sm font-medium">V18.3</span>
-<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden border border-outline-variant/15">
-<img class="w-full h-full object-cover" data-alt="professional male portrait with neutral expression in soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUS5TOWQoXeiPQcaxah_8lMkqNjTuQR3O4uCuzF1-QRczmpRQxxM1kRpZhptz8p4QAng6byghXnCsvdsW3_MzKawmc6ySf_3PGHrdCiFd2KjaTLsGZ0XWjcMlqlcDEtldTZ9cGG3F-l5NXdeWpC3xFOog0bAdTkneKfgtXokXm3gYuon7mkBluDQaizFX5Dcbe6MCz--nt4lsXeOOArV3do24BZqoAZMmVd_kkJ6F4E1ILF6LyDGQFGfVmIlwgwDxLwW5POTj2_TA"/>
-</div>
-</div>
-</header>
-<main class="pt-24 pb-32 px-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6">
-<section class="md:col-span-8 space-y-6">
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-<a class="group relative overflow-hidden bg-surface-container-low p-6 rounded-lg transition-all duration-300 hover:bg-surface-container-high hover:scale-[1.02]" href="#">
-<div class="flex justify-between items-start mb-4">
-<span class="material-symbols-outlined text-primary-container text-4xl" data-icon="location_on">location_on</span>
-<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="arrow_outward">arrow_outward</span>
-</div>
-<h3 class="text-xl font-bold text-on-surface mb-1">庫位查詢</h3>
-<p class="text-sm text-on-surface-variant">即時視覺化倉儲網格導航</p>
-</a>
-<a class="group relative overflow-hidden bg-surface-container-low p-6 rounded-lg transition-all duration-300 hover:bg-surface-container-high hover:scale-[1.02]" href="#">
-<div class="flex justify-between items-start mb-4">
-<span class="material-symbols-outlined text-primary-container text-4xl" data-icon="input">input</span>
-<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="arrow_outward">arrow_outward</span>
-</div>
-<h3 class="text-xl font-bold text-on-surface mb-1">入庫作業</h3>
-<p class="text-sm text-on-surface-variant">掃描清單並指派最佳存放位</p>
-</a>
-<a class="group relative overflow-hidden bg-surface-container-low p-6 rounded-lg transition-all duration-300 hover:bg-surface-container-high hover:scale-[1.02]" href="#">
-<div class="flex justify-between items-start mb-4">
-<span class="material-symbols-outlined text-primary-container text-4xl" data-icon="shopping_cart_checkout">shopping_cart_checkout</span>
-<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="arrow_outward">arrow_outward</span>
-</div>
-<h3 class="text-xl font-bold text-on-surface mb-1">出庫揀貨</h3>
-<p class="text-sm text-on-surface-variant">智慧路徑規劃，提升揀貨效率</p>
-</a>
-<a class="group relative overflow-hidden bg-surface-container-low p-6 rounded-lg border border-error/10 transition-all duration-300 hover:bg-error-container/20 hover:scale-[1.02]" href="#">
-<div class="flex justify-between items-start mb-4">
-<span class="material-symbols-outlined text-error text-4xl" data-icon="warning">warning</span>
-<span class="material-symbols-outlined text-on-surface-variant group-hover:text-error transition-colors" data-icon="arrow_outward">arrow_outward</span>
-</div>
-<h3 class="text-xl font-bold text-on-surface mb-1 text-error">異常監控</h3>
-<p class="text-sm text-on-surface-variant">庫位溫濕度及未授權存取警示</p>
-</a>
-</div>
-<div class="bg-surface-container-low rounded-lg p-6 relative overflow-hidden">
-<div class="flex items-center justify-between mb-8">
-<h2 class="text-lg font-bold text-primary">待辦任務動態</h2>
-<span class="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-xs font-bold">12 待處理</span>
-</div>
-<div class="space-y-4">
-<div class="flex items-center gap-4 p-4 bg-surface-container rounded-lg border-l-4 border-primary-container">
-<div class="flex-1">
-<p class="text-on-surface font-medium">區塊 A-12 重新盤點</p>
-<p class="text-xs text-on-surface-variant">由 系統管理員 指派 • 剩餘 2 小時</p>
-</div>
-<button class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</button>
-</div>
-<div class="flex items-center gap-4 p-4 bg-surface-container rounded-lg border-l-4 border-tertiary">
-<div class="flex-1">
-<p class="text-on-surface font-medium">SKU-9920 緊急出貨</p>
-<p class="text-xs text-on-surface-variant">優先級：高 • 到達碼頭：Door 4</p>
-</div>
-<button class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</button>
-</div>
-</div>
-</div>
-</section>
-<section class="md:col-span-4 space-y-6">
-<div class="bg-surface-container-low rounded-lg p-8 flex flex-col items-center text-center">
-<h2 class="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-6">即時庫存佔用率</h2>
-<div class="relative w-48 h-48 mb-6">
-<div class="circular-progress absolute inset-0 rounded-full flex items-center justify-center p-4">
-<div class="bg-surface-container-low rounded-full w-full h-full flex flex-col items-center justify-center">
-<span class="text-4xl font-black text-on-surface">78<span class="text-lg font-medium">%</span></span>
-<span class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Capacity Used</span>
-</div>
-</div>
-</div>
-<div class="grid grid-cols-2 gap-4 w-full">
-<div class="p-3 bg-surface-container rounded-lg">
-<p class="text-[10px] text-on-surface-variant uppercase mb-1">可用庫位</p>
-<p class="text-lg font-bold text-primary">1,204</p>
-</div>
-<div class="p-3 bg-surface-container rounded-lg">
-<p class="text-[10px] text-on-surface-variant uppercase mb-1">異常狀態</p>
-<p class="text-lg font-bold text-error">02</p>
-</div>
-</div>
-</div>
-<div class="bg-gradient-to-br from-primary-container to-tertiary-container rounded-lg p-6 text-on-primary-container relative overflow-hidden group">
-<div class="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
-<h3 class="text-lg font-bold mb-2">智能最佳化建議</h3>
-<p class="text-sm opacity-90 mb-4 leading-relaxed">偵測到 A 區周轉率升高，建議將常用的 15 項 SKU 移往快速揀貨區。</p>
-<button class="w-full bg-on-primary-container text-primary-container font-bold py-3 rounded-full text-sm hover:bg-white transition-colors">
-                    立即執行遷移
+<body class="min-h-screen flex">
+
+<aside class="hidden md:flex flex-col w-72 h-screen p-4 bg-[#181c22] rounded-r-3xl shadow-2xl fixed left-0 top-0 z-40">
+    <div class="mb-10 px-4 py-6"><h1 class="text-lg font-bold text-[#bac3ff]">倉儲管理系統</h1></div>
+    <nav class="flex-1 flex flex-col gap-2">
+        <a class="text-[#c6c5d3] px-4 py-3 hover:bg-[#262a31] rounded-full flex items-center gap-4" href="index.html"><span class="material-symbols-outlined">dashboard</span>儀表板</a>
+        <a class="bg-[#5c6bc0] text-white rounded-full px-4 py-3 flex items-center gap-4" href="query.html"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">location_on</span>庫位查詢</a>
+        <a class="text-[#c6c5d3] px-4 py-3 hover:bg-[#262a31] rounded-full flex items-center gap-4" href="settings.html"><span class="material-symbols-outlined">settings</span>系統設定</a>
+    </nav>
+</aside>
+
+<main class="flex-1 flex flex-col min-h-screen md:pl-72">
+    <header class="flex justify-between items-center w-full px-6 h-16 bg-[#10141a]/80 backdrop-blur-xl fixed top-0 z-30 md:w-[calc(100%-18rem)]">
+        <span class="text-[#bac3ff] font-bold text-xl">庫位查詢系統</span>
+        <span class="text-[#c3c0ff] text-sm">V18.6</span>
+    </header>
+
+    <section class="mt-20 px-6 pb-24 max-w-5xl mx-auto w-full flex flex-col gap-8">
+        <div class="mt-8">
+            <p class="text-primary-container font-bold tracking-widest text-xs uppercase mb-2">Inventory Control</p>
+            <h2 class="text-4xl font-bold text-on-surface">快速搜尋</h2>
+        </div>
+
+        <div class="bg-surface-container-high rounded-3xl p-6 border border-outline-variant/15 shadow-xl">
+            <div class="flex flex-col md:flex-row gap-4">
+                <input id="searchInput" type="text" placeholder="輸入料號、批號或庫位關鍵字..." 
+                       class="flex-1 bg-surface-dim border-none rounded-2xl py-4 px-6 text-on-surface focus:ring-2 focus:ring-primary shadow-inner">
+                <button onclick="fetchData()" class="bg-primary-container hover:bg-opacity-90 text-white px-8 py-4 rounded-2xl font-bold transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined">sync</span> 執行查詢
                 </button>
-</div>
-</section>
+            </div>
+        </div>
+
+        <div id="resultContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="md:col-span-2 text-center py-20 border-2 border-dashed border-outline-variant/20 rounded-3xl text-on-surface-variant">
+                請輸入關鍵字進行查詢
+            </div>
+        </div>
+    </section>
 </main>
-<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-[#10141a]/90 backdrop-blur-lg shadow-[0_-8px_32px_rgba(0,0,0,0.4)] border-t border-[#ffffff15] md:hidden">
-<a class="flex flex-col items-center justify-center bg-gradient-to-b from-[#5c6bc0] to-[#3f4ba0] text-white rounded-full px-8 py-3 my-2 duration-200" href="#">
-<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
-<span class="font-['Inter','PingFang_TC'] label-small uppercase tracking-widest text-[10px] mt-1">儀表板</span>
-</a>
-<a class="flex flex-col items-center justify-center text-[#c6c5d3] px-6 py-2 hover:text-white transition-all" href="#">
-<span class="material-symbols-outlined" data-icon="sensors">sensors</span>
-<span class="font-['Inter','PingFang_TC'] label-small uppercase tracking-widest text-[10px] mt-1">系統狀態</span>
-</a>
+
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-[#10141a]/95 backdrop-blur-lg border-t border-[#ffffff15]">
+    <a class="flex flex-col items-center p-2 text-[#c6c5d3]" href="index.html">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="text-[10px] mt-1">儀表板</span>
+    </a>
+    <a class="flex flex-col items-center p-2 text-primary" href="query.html">
+        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">location_on</span>
+        <span class="text-[10px] mt-1">查詢</span>
+    </a>
+    <a class="flex flex-col items-center p-2 text-[#c6c5d3]" href="settings.html">
+        <span class="material-symbols-outlined">settings</span>
+        <span class="text-[10px] mt-1">設定</span>
+    </a>
 </nav>
-<div class="hidden md:flex fixed right-8 bottom-8 flex-col gap-4">
-<button class="w-14 h-14 bg-primary-container text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all" title="啟動系統">
-<span class="material-symbols-outlined" data-icon="play_circle" style="font-variation-settings: 'FILL' 1;">play_circle</span>
-</button>
-</div>
-</body></html>
+
+<script>
+    // 請替換為您 GAS 部署後的 API 網址
+    const API_URL = "您的_GAS_API_網址";
+
+    async function fetchData() {
+        const container = document.getElementById('resultContainer');
+        const query = document.getElementById('searchInput').value;
+        
+        container.innerHTML = `
+            <div class="md:col-span-2 text-center py-20 text-primary flex flex-col items-center gap-4">
+                <div class="animate-spin"><span class="material-symbols-outlined text-4xl">sync</span></div>
+                <p>正在從雲端資料庫抓取...</p>
+            </div>
+        `;
+
+        try {
+            const response = await fetch(`${API_URL}?search=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            renderResults(data);
+        } catch (error) {
+            container.innerHTML = `<div class="md:col-span-2 text-center py-20 text-error">連線失敗，請檢查網路或 API 權限。</div>`;
+        }
+    }
+
+    function renderResults(data) {
+        const container = document.getElementById('resultContainer');
+        if (!data || data.length === 0 || data.status === "failed") {
+            container.innerHTML = `<div class="md:col-span-2 text-center py-20 text-on-surface-variant">查無符合條件的資料</div>`;
+            return;
+        }
+
+        container.innerHTML = data.map(item => `
+            <div class="bg-surface-container-high p-6 rounded-3xl border border-outline-variant/10 hover:border-primary/40 transition-all group">
+                <div class="flex justify-between mb-4">
+                    <span class="bg-primary/10 text-primary px-3 py-1 rounded-lg text-xs font-bold font-mono tracking-wider">
+                        ${item.location}
+                    </span>
+                </div>
+                <h3 class="text-2xl font-bold text-on-surface mb-6 group-hover:text-primary transition-colors">${item.partNo}</h3>
+                
+                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-outline-variant/10">
+                    <div>
+                        <p class="text-[10px] uppercase text-on-surface-variant font-black tracking-widest mb-1">BATCH / 批號</p>
+                        <p class="text-sm font-medium text-on-surface">${item.batch}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] uppercase text-on-surface-variant font-black tracking-widest mb-1">EXPIRY / 效期</p>
+                        <p class="text-sm font-bold text-primary">${item.expiryDate}</p>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+</script>
+</body>
+</html>
