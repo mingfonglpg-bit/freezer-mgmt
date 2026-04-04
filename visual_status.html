@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-TW">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#bac3ff",
+                        "surface-container": "#1c2026",
+                        "background": "#10141a",
+                        "outline-variant": "#454651",
+                        "error": "#ffb4ab",
+                        "warning": "#f59e0b",
+                        "cut-zone": "#a855f7"
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .slot { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; cursor: pointer; transition: transform 0.2s; border: 1px solid rgba(255,255,255,0.1); }
+        .slot:hover { transform: scale(1.1); z-index: 10; }
+        .occupied { background: #6366f1; color: white; }
+        .status-cut { background: #a855f7 !important; color: white; }
+        .status-danger { background: #ef4444 !important; color: white; }
+        .status-warning { background: #f59e0b !important; color: white; }
+    </style>
+</head>
+<body class="bg-background text-slate-200 font-sans min-h-screen">
+
+    <header class="fixed top-0 left-0 w-full z-50 bg-[#10141a]/80 backdrop-blur-xl flex justify-between items-center px-6 h-16 border-b border-white/5">
+        <div class="flex items-center gap-4">
+            <a href="dashboard.html" class="material-symbols-outlined text-primary p-2 hover:bg-white/10 rounded-full">arrow_back</a>
+            <h1 class="text-xl font-bold text-primary">庫位視覺化查詢</h1>
+        </div>
+        <div id="usageBadge" class="bg-primary/20 text-primary px-4 py-1 rounded-full text-sm font-bold border border-primary/30">
+            總使用率: --%
+        </div>
+    </header>
+
+    <main class="pt-24 pb-12 px-6 max-w-7xl mx-auto space-y-6">
+        
+        <div class="bg-surface-container rounded-2xl p-6 flex flex-wrap gap-4 items-center justify-between border border-white/5">
+            <div class="flex gap-3">
+                <select id="vZone" onchange="renderVisual()" class="bg-background border border-outline-variant rounded-xl px-4 py-2 text-sm outline-none focus:border-primary">
+                    <option value="極冷庫-左">極冷庫-左</option>
+                    <option value="極冷庫-右">極冷庫-右</option>
+                    <option value="冷藏庫-左">冷藏庫-左</option>
+                    <option value="冷藏庫-右">冷藏庫-右</option>
+                    <option value="常溫區">常溫區</option>
+                </select>
+                <select id="vFloor" onchange="renderVisual()" class="bg-background border border-outline-variant rounded-xl px-4 py-2 text-sm outline-none focus:border-primary">
+                    <option value="1F">1F</option>
+                    <option value="2F">2F</option>
+                    <option value="3F">3F</option>
+                    <option value="4F">4F</option>
+                </select>
+            </div>
+            
+            <div class="flex gap-4 text-xs font-medium text-slate-400">
+                <div class="flex items-center gap-1"><span class="w-3 h-3 bg-slate-700 rounded-sm"></span> 空置</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 bg-[#6366f1] rounded-sm"></span> 正常</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 bg-[#a855f7] rounded-sm"></span> 切分</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 bg-[#ef4444] rounded-sm"></span> 報廢</div>
+                <div class="flex items-center gap-1"><span class="w-3 h-3 bg-[#f59e0b] rounded-sm"></span> 異常</div>
+            </div>
+        </div>
+
+        <div class="bg-surface-container rounded-3xl p-8 border border-white/5 shadow-2xl">
+            <div class="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 id="mapTitle" class="text-2xl font-bold text-white mb-1">載入中...</h2>
+                    <p class="text-slate-400 text-sm">點擊庫位可快速定位詳細資訊</p>
+                </div>
+                <button onclick="fetchData()" class="flex items-center gap-2 text-primary hover:bg-primary/10 px-4 py-2 rounded-xl transition-all">
+                    <span class="material-symbols-outlined text-sm">refresh</span> 重新整理
+                </button>
+            </div>
+
+            <div id="visualGrid" class="grid gap-3"></div>
+        </div>
+
+    </main>
+
+    <div id="loader" class="fixed inset-0 bg-background/80 backdrop-blur-md z-[100] flex items-center justify-center hidden">
+        <div class="flex flex-col items-center gap-4">
+            <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p class="font-bold text-primary">同步雲端資料中...</p>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGRptsGHH3MLrl4eU0UsCQ4lvxGE5goP3VF_FntVevNrG31h8VtXhjoYSpO56IYA_T/exec"; 
+        let inventory = [], zoneConfigs = {};
+
+        // 核心：從 android.html 擷取的配色邏輯
+        function getZoneColor(zone) {
+            const colors = {
+                "極冷庫-左": "#38bdf8",
+                "極冷庫-右": "#818cf8",
+                "冷藏庫-左": "#fbbf24",
+                "冷藏庫-右": "#fb7185",
+                "常溫區": "#34d399"
+            };
+            return colors[zone] || "#6366f1";
+        }
+
+        async function fetchData() {
+            document.getElementById('loader').classList.remove('hidden');
+            try {
+                const res = await fetch(SCRIPT_URL);
+                const data = await res.json();
+                inventory = data.inventory;
+                zoneConfigs = data.configs;
+                renderVisual();
+            } catch (e) {
+                console.error("Fetch Error:", e);
+                alert("資料讀取失敗，請檢查網路連線");
+            }
+            document.getElementById('loader').classList.add('hidden');
+        }
+
+        // 核心：擷取並優化的視覺化渲染邏輯
+        function renderVisual() {
+            const grid = document.getElementById('visualGrid');
+            const zone = document.getElementById('vZone').value;
+            const floor = document.getElementById('vFloor').value;
+            const config = zoneConfigs[zone] || { maxPos: 22, cols: 11 };
+            
+            document.getElementById('mapTitle').innerText = `${zone} - ${floor}`;
+            grid.style.gridTemplateColumns = `repeat(${config.cols}, minmax(0, 1fr))`;
+            grid.innerHTML = '';
+
+            for (let i = 1; i <= config.maxPos; i++) {
+                const items = inventory.filter(d => d.zone === zone && d.floor === floor && d.pos == i);
+                const slot = document.createElement('div');
+                let statusClass = '', customStyle = '';
+
+                if (items.length > 0) {
+                    statusClass = 'occupied';
+                    // 檢查特殊狀態 (擷取自 android.html)
+                    if (items.some(item => (item.name || "").includes("(切)"))) statusClass = 'status-cut';
+                    else if (items.some(item => (item.note || "").includes("報廢"))) statusClass = 'status-danger';
+                    else if (items.some(item => (item.note || "").includes("異常"))) statusClass = 'status-warning';
+                    
+                    if(statusClass === 'occupied') {
+                        customStyle = `background-color: ${getZoneColor(zone)}`;
+                    }
+                } else {
+                    statusClass = 'bg-slate-800/50'; // 空置樣式
+                }
+
+                slot.className = `slot ${statusClass}`;
+                if(customStyle) slot.style = customStyle;
+                slot.innerHTML = `<span>${i}</span>`;
+                
+                // 互動：點擊跳轉或提示
+                slot.onclick = () => {
+                    const itemName = items.length > 0 ? items[0].name : "空位";
+                    alert(`儲位: ${zone}${floor}-${i}\n內容: ${itemName}`);
+                };
+                grid.appendChild(slot);
+            }
+
+            // 使用率計算 (擷取自 android.html)
+            const zoneItems = inventory.filter(i => i.zone === zone);
+            const occupiedCount = new Set(zoneItems.map(i => `${i.floor}-${i.pos}`)).size;
+            const usagePercent = ((occupiedCount / (config.maxPos * 4)) * 100).toFixed(1);
+            document.getElementById('usageBadge').innerText = `${zone} 使用率: ${usagePercent}%`;
+        }
+
+        // 初始化
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
