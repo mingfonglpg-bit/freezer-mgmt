@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>帳單管理系統</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; padding-top: 30px; font-family: "Microsoft JhengHei", sans-serif; }
+    .container { max-width: 900px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+    .hidden { display: none !important; }
+    .status-paid { color: #198754; font-weight: bold; }
+    .status-unpaid { color: #dc3545; font-weight: bold; }
+    /* 圖片預覽樣式 */
+    .img-preview { 
+      width: 60px; 
+      height: 60px; 
+      object-fit: cover; 
+      border-radius: 5px; 
+      cursor: pointer; 
+      border: 1px solid #dee2e6;
+      transition: transform 0.2s;
+    }
+    .img-preview:hover { transform: scale(1.1); border-color: #0d6efd; }
+  </style>
+</head>
+<body>
+
+<div class="container" id="login-box" style="max-width: 400px;">
+  <h3 class="text-center mb-4">系統登入</h3>
+  <div class="mb-3"><input type="text" id="user" class="form-control" placeholder="帳號"></div>
+  <div class="mb-3"><input type="password" id="pass" class="form-control" placeholder="密碼"></div>
+  <button onclick="handleLogin()" id="loginBtn" class="btn btn-primary w-100">登入</button>
+</div>
+
+<div id="main-content" class="container hidden">
+  <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+    <h4 class="m-0">帳單紀錄</h4>
+    <div>
+      <button class="btn btn-success btn-sm" onclick="openBillModal()">+ 新增帳單</button>
+      <button class="btn btn-outline-danger btn-sm ms-2" onclick="location.reload()">登出</button>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle text-center">
+      <thead class="table-light">
+        <tr><th>日期</th><th>項目</th><th>金額</th><th>狀態</th><th>收據</th><th>操作</th></tr>
+      </thead>
+      <tbody id="bill-list"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="billModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">編輯帳單</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-id">
+        <input type="hidden" id="edit-imgId">
+        <div class="mb-3"><label class="form-label">日期</label><input type="date" id="edit-date" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">項目</label><input type="text" id="edit-item" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">金額</label><input type="number" id="edit-amount" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">狀態</label>
+          <select id="edit-status" class="form-control">
+            <option value="未繳費">未繳費</option>
+            <option value="已繳費">已繳費</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">更換收據照片 (選填)</label>
+          <input type="file" id="edit-file" class="form-control" accept="image/*">
+          <small class="text-muted">若不更換請留空</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="saveBtn" onclick="handleSaveBill()" class="btn btn-primary w-100">儲存資料</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // 重要：請替換為你的 GAS 部署網址
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbxmSY7fufoiWNggXW6wXIBnaOpeGJbFSaLrivbThUcrek1XdHUFbYluG2O5VC9oTKc3/exec"; 
+  let billModal;
+
+  window.onload = () => { 
+    billModal = new bootstrap.Modal(document.getElementById('billModal')); 
+  };
+
+  async function apiCall(data) {
+    try {
+      const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(data) });
+      const result = await response.json();
+      if (!result.success && result.message) console.error("API Error:", result.message);
+      return result;
+    } catch (e) { 
+      alert('連線失敗，請確認 GAS 是否已正確部署並開啟所有人存取權限。'); 
+    }
+  }
+
+  async function handleLogin() {
+    const user = document.getElementById('user').value;
+    const pass = document.getElementById('pass').value;
+    const res = await apiCall({ action: 'login', username: user, password: pass });
+    if (res && res.success) {
+      document.getElementById('login-box').classList.add('hidden');
+      document.getElementById('main-content').classList.remove('hidden');
+      loadBills();
+    } else { 
+      alert("帳號或密碼錯誤"); 
+    }
+  }
+
+  async function loadBills() {
+    const res = await apiCall({ action: 'getBills' });
+    const tbody = document.getElementById('bill-list');
+    tbody.innerHTML = "<tr><td colspan='6'>讀取中...</td></tr>";
+    
+    if (res && res.data) {
+      tbody.innerHTML = "";
+      res.data.forEach(row => {
+        const tr = document.createElement('tr');
+        
+        // 處理 Google Drive 圖片顯示
+        const driveId = row[5]; // 假設 ID 存在第六欄 (索引 5)
+        let imgHtml = "<span class='text-muted'>無</span>";
+        
+        if (driveId && driveId.length > 5) {
+          const thumbUrl = `https://drive.google.com/uc?id=${driveId}`;
+          imgHtml = `<img src="${thumbUrl}" class="img-preview" title="點擊檢視原圖" onerror="this.src='https://placehold.co/60?text=Error'" onclick="window.open('${thumbUrl}')">`;
+        }
+
+        tr.innerHTML = `
+          <td>${row[1]}</td>
+          <td>${row[2]}</td>
+          <td>$${row[3]}</td>
+          <td class="${row[4]==='已繳費'?'status-paid':'status-unpaid'}">${row[4]}</td>
+          <td>${imgHtml}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-info" onclick='editBill(${JSON.stringify(row)})'>編輯</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteBill('${row[0]}')">刪除</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  function openBillModal() {
+    document.getElementById('edit-id').value = ""; 
+    document.getElementById('edit-imgId').value = "";
+    document.getElementById('edit-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('edit-item').value = ""; 
+    document.getElementById('edit-amount').value = "";
+    document.getElementById('edit-status').value = "未繳費"; 
+    document.getElementById('edit-file').value = "";
+    document.getElementById('modalTitle').innerText = "新增帳單紀錄"; 
+    billModal.show();
+  }
+
+  function editBill(row) {
+    document.getElementById('edit-id').value = row[0]; 
+    document.getElementById('edit-date').value = row[1];
+    document.getElementById('edit-item').value = row[2]; 
+    document.getElementById('edit-amount').value = row[3];
+    document.getElementById('edit-status').value = row[4]; 
+    document.getElementById('edit-imgId').value = row[5] || "";
+    document.getElementById('edit-file').value = ""; 
+    document.getElementById('modalTitle').innerText = "編輯帳單紀錄"; 
+    billModal.show();
+  }
+
+  async function handleSaveBill() {
+    const btn = document.getElementById('saveBtn');
+    const fileInput = document.getElementById('edit-file');
+    
+    if (!document.getElementById('edit-item').value) return alert("請填寫項目名稱");
+
+    btn.disabled = true; 
+    btn.innerText = "正在處理並上傳照片...";
+    
+    let imageData = null;
+
+    // 檢查是否有選擇新照片
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const base64 = await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(file);
+      });
+      imageData = { base64: base64, type: file.type, name: file.name };
+    }
+
+    const payload = {
+      action: 'saveBill',
+      billData: {
+        id: document.getElementById('edit-id').value, 
+        date: document.getElementById('edit-date').value,
+        item: document.getElementById('edit-item').value, 
+        amount: document.getElementById('edit-amount').value,
+        status: document.getElementById('edit-status').value, 
+        imgId: document.getElementById('edit-imgId').value
+      },
+      imageFile: imageData
+    };
+
+    const res = await apiCall(payload);
+    if (res && res.success) { 
+      billModal.hide(); 
+      loadBills(); 
+    } else { 
+      alert("儲存失敗：" + (res ? res.message : "請檢查雲端硬碟權限或 FOLDER_ID")); 
+    }
+    btn.disabled = false; 
+    btn.innerText = "儲存資料";
+  }
+
+  async function deleteBill(id) {
+    if (confirm("確定要永久刪除這筆帳單嗎？")) {
+      const res = await apiCall({ action: 'deleteBill', id: id });
+      if (res && res.success) loadBills();
+    }
+  }
+</script>
+</body>
+</html>
