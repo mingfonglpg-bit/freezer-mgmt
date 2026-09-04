@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧倉儲系統 · SKU + 庫存數量 + 視覺化圖譜</title>
+<style>
+  :root {
+    --primary: #1a73e8;
+    --danger: #d93025;
+    --success: #188038;
+    --warning: #f9ab00;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --border: #dadce0;
+    --slot-empty: #e8f0fe;
+    --slot-occupied: #34a853;
+    --slot-low: #fbbc04;
+    --slot-expired: #ea4335;
+    --slot-selected: #1a73e8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: #202124;
+    line-height: 1.5;
+    padding: 12px;
+  }
+  .container { max-width: 1500px; margin: 0 auto; }
+  header {
+    background: linear-gradient(135deg, #1a73e8, #0d47a1);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 { font-size: 1.35rem; font-weight: 600; }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+    align-items: center;
+  }
+  input, select, button, textarea {
+    font-size: 14px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+  }
+  button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.15s;
+  }
+  button:hover { opacity: 0.92; transform: translateY(-1px); }
+  button.secondary { background: #5f6368; }
+  button.danger { background: var(--danger); }
+  button.success { background: var(--success); }
+  button.warning { background: var(--warning); color: #202124; }
+  button.outline {
+    background: white;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+  }
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+  .search-box input { width: 100%; padding-left: 36px; }
+  .search-box::before {
+    content: "🔍";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: #f8f9fa;
+  }
+  .card-header h2 { font-size: 1.05rem; font-weight: 600; }
+  .stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .stat-box {
+    background: white;
+    padding: 10px 16px;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    min-width: 110px;
+  }
+  .stat-box .num { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+  .stat-box .label { font-size: 12px; color: #5f6368; }
+
+  /* ========== 視覺化圖譜 ========== */
+  .map-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+  .zone-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .zone-tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #e8eaed;
+    border: none;
+    color: #3c4043;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .zone-tab.active {
+    background: var(--primary);
+    color: white;
+  }
+  .map-grid-wrapper {
+    overflow-x: auto;
+    padding: 8px 0;
+  }
+  .map-grid {
+    display: grid;
+    gap: 6px;
+    justify-content: start;
+  }
+  .slot {
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    border: 2px solid #c5c9ce;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    transition: 0.15s;
+    position: relative;
+    user-select: none;
+    background: var(--slot-empty);
+  }
+  .slot:hover {
+    transform: scale(1.06);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 2;
+  }
+  .slot.occupied { background: #e6f4ea; border-color: var(--slot-occupied); }
+  .slot.low { background: #fef7e0; border-color: var(--slot-low); }
+  .slot.expired { background: #fce8e6; border-color: var(--slot-expired); }
+  .slot.selected {
+    border-color: var(--slot-selected);
+    box-shadow: 0 0 0 3px rgba(26,115,232,0.35);
+  }
+  .slot .slot-code { font-weight: 700; font-size: 12px; color: #202124; }
+  .slot .slot-qty { font-size: 11px; color: #5f6368; margin-top: 2px; }
+  .slot .slot-sku { font-size: 9px; color: #5f6368; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slot.empty .slot-qty { color: #9aa0a6; }
+
+  /* 表格 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    padding: 10px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: #f1f3f4;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+    z-index: 1;
+  }
+  tr:hover { background: #f8f9fa; }
+  tr.highlight { background: #e8f0fe !important; }
+  .qty { font-weight: 600; color: var(--primary); }
+  .qty.low { color: var(--danger); }
+  .actions { display: flex; gap: 4px; flex-wrap: wrap; }
+  .actions button { padding: 3px 8px; font-size: 12px; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 22px;
+  }
+  .modal h2 { margin-bottom: 14px; font-size: 1.2rem; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 13px; font-weight: 500; color: #5f6368; }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  /* 比對 */
+  .compare-panel {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .compare-panel.show { display: grid; }
+  .compare-card {
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .compare-card h3 { margin-bottom: 10px; color: var(--primary); font-size: 1rem; }
+  .diff { background: #fff3cd; padding: 2px 6px; border-radius: 4px; }
+
+  /* 儲位詳情浮層 */
+  .slot-detail {
+    position: absolute;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    padding: 14px;
+    z-index: 50;
+    min-width: 220px;
+    max-width: 280px;
+    display: none;
+    border: 1px solid var(--border);
+  }
+  .slot-detail.show { display: block; }
+  .slot-detail h4 { margin-bottom: 8px; font-size: 14px; }
+  .slot-detail p { font-size: 13px; margin-bottom: 4px; color: #3c4043; }
+  .slot-detail .btns { margin-top: 10px; display: flex; gap: 6px; }
+
+  .empty {
+    text-align: center;
+    padding: 36px;
+    color: #5f6368;
+  }
+
+  /* 格局設定 Modal */
+  .layout-preview {
+    display: grid;
+    gap: 4px;
+    margin-top: 10px;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .layout-preview .mini-slot {
+    width: 28px;
+    height: 28px;
+    background: #e8f0fe;
+    border: 1px solid #c5c9ce;
+    border-radius: 4px;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (max-width: 768px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .compare-panel { grid-template-columns: 1fr; }
+    .slot { width: 60px; height: 60px; }
+    header h1 { font-size: 1.15rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📦 智慧倉儲 · SKU + 庫存 + 視覺化圖譜</h1>
+    <div style="font-size:12px;opacity:0.9">本機儲存 · 可接 Supabase</div>
+  </header>
+
+  <!-- 統計 -->
+  <div class="stats" id="stats"></div>
+
+  <!-- 工具列 -->
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="搜尋 SKU / 產品名稱 / 批號 / 儲位..." oninput="onSearch()">
+    </div>
+    <button onclick="openModal()">＋ 新增入庫</button>
+    <button class="outline" onclick="openLayoutModal()">⚙️ 格局設定</button>
+    <button class="secondary" onclick="exportCSV()">📥 匯出 CSV</button>
+    <button class="warning" id="compareBtn" onclick="toggleCompareMode()">🔀 比對模式</button>
+    <button class="secondary" onclick="clearAllData()" title="清除所有資料">🗑 清空</button>
+  </div>
+
+  <!-- 比對面版 -->
+  <div class="compare-panel" id="comparePanel">
+    <div class="compare-card" id="compareA">
+      <h3>項目 A</h3>
+      <div id="compareAContent">尚未選擇</div>
+    </div>
+    <div class="compare-card" id="compareB">
+      <h3>項目 B</h3>
+      <div id="compareBContent">尚未選擇</div>
+    </div>
+  </div>
+
+  <!-- ========== 視覺化圖譜 ========== -->
+  <div class="card">
+    <div class="card-header">
+      <h2>🗺️ 儲位視覺化圖譜</h2>
+      <div class="map-controls">
+        <div class="zone-tabs" id="zoneTabs"></div>
+        <select id="floorSelect" onchange="renderMap()" style="min-width:90px"></select>
+      </div>
+    </div>
+    <div style="padding:14px 16px">
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-color" style="background:#e8f0fe"></div>空庫位</div>
+        <div class="legend-item"><div class="legend-color" style="background:#e6f4ea;border-color:#34a853"></div>有庫存</div>
+        <div class="legend-item"><div class="legend-color" style="background:#fef7e0;border-color:#fbbc04"></div>低庫存 (≤5)</div>
+        <div class="legend-item"><div class="legend-color" style="background:#fce8e6;border-color:#ea4335"></div>已過期 / 即將到期</div>
+        <div class="legend-item" id="emptyCount" style="margin-left:auto;font-weight:600;color:#5f6368"></div>
+      </div>
+      <div class="map-grid-wrapper">
+        <div class="map-grid" id="mapGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 儲位詳情浮層 -->
+  <div class="slot-detail" id="slotDetail"></div>
+
+  <!-- 資料表格 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>📋 庫存列表</h2>
+      <span id="listInfo" style="font-size:13px;color:#5f6368"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>儲位</th>
+            <th>產品名稱</th>
+            <th>庫存數量</th>
+            <th>批號</th>
+            <th>有效日期</th>
+            <th>備註</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="empty" style="display:none">尚無資料，請點擊「新增入庫」開始建檔</div>
+  </div>
+</div>
+
+<!-- 新增/編輯 Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modalTitle">新增入庫</h2>
+    <form id="itemForm" onsubmit="saveItem(event)">
+      <input type="hidden" id="editId">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>SKU *</label>
+          <input type="text" id="sku" required placeholder="例：SKU-2026-001">
+        </div>
+        <div class="form-group">
+          <label>庫存數量 *</label>
+          <input type="number" id="quantity" required min="0" value="1">
+        </div>
+        <div class="form-group">
+          <label>區域</label>
+          <select id="zoneSelect" onchange="updateLocationOptions()"></select>
+        </div>
+        <div class="form-group">
+          <label>樓層</label>
+          <select id="floorSelectForm" onchange="updateLocationOptions()"></select>
+        </div>
+        <div class="form-group">
+          <label>儲位號 *</label>
+          <select id="slotSelect" required></select>
+        </div>
+        <div class="form-group">
+          <label>或手動輸入儲位</label>
+          <input type="text" id="locationManual" placeholder="例：A-1-03（優先使用）">
+        </div>
+        <div class="form-group full">
+          <label>產品名稱 *</label>
+          <input type="text" id="productName" required placeholder="產品名稱">
+        </div>
+        <div class="form-group">
+          <label>批號</label>
+          <input type="text" id="batchNo" placeholder="批號">
+        </div>
+        <div class="form-group">
+          <label>有效日期</label>
+          <input type="date" id="expiryDate">
+        </div>
+        <div class="form-group full">
+          <label>備註</label>
+          <textarea id="note" rows="2" placeholder="備註說明"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeModal()">取消</button>
+        <button type="submit" class="success">儲存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 格局設定 Modal -->
+<div class="modal-overlay" id="layoutModal">
+  <div class="modal">
+    <h2>⚙️ 倉庫格局設定</h2>
+    <p style="font-size:13px;color:#5f6368;margin-bottom:12px">設定區域、樓層數與每層儲位數量，系統會自動產生視覺化地圖格子。</p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>區域名稱</label>
+        <input type="text" id="newZoneName" placeholder="例：常溫A區">
+      </div>
+      <div class="form-group">
+        <label>樓層數</label>
+        <input type="number" id="newFloors" min="1" max="20" value="2">
+      </div>
+      <div class="form-group">
+        <label>每層儲位數</label>
+        <input type="number" id="newSlotsPerFloor" min="1" max="50" value="10">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <button type="button" class="success" onclick="addZone()">＋ 新增區域</button>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <h3 style="font-size:14px;margin-bottom:8px">目前區域</h3>
+      <div id="zoneList"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary" onclick="closeLayoutModal()">關閉</button>
+      <button type="button" class="success" onclick="saveLayoutAndClose()">套用並關閉</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==================== 資料層 ====================
+  const STORAGE_KEY = 'smart_warehouse_sku_visual_v1';
+  const LAYOUT_KEY = 'smart_warehouse_layout_v1';
+
+  function loadData() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+  function loadLayout() {
+    try {
+      const l = JSON.parse(localStorage.getItem(LAYOUT_KEY));
+      if (l && l.zones && l.zones.length) return l;
+    } catch {}
+    // 預設格局
+    return {
+      zones: [
+        { id: 'z1', name: '常溫A區', floors: 2, slotsPerFloor: 10 },
+        { id: 'z2', name: '冷藏B區', floors: 1, slotsPerFloor: 8 }
+      ]
+    };
+  }
+  function saveLayout(layout) {
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+  }
+
+  let items = loadData();
+  let layout = loadLayout();
+  let currentZoneId = layout.zones[0]?.id || '';
+  let currentFloor = 1;
+  let compareMode = false;
+  let compareSelection = { a: null, b: null };
+  let selectedSlotCode = null;
+  let highlightId = null;
+
+  // ==================== 工具函式 ====================
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    d.setHours(0,0,0,0);
+    return Math.ceil((d - today) / 86400000);
+  }
+
+  function slotCode(zoneName, floor, slotNum) {
+    // 產生儲位代碼，例如 常溫A區-1-03
+    const short = zoneName.replace(/區$/, '').slice(0, 4);
+    return `${short}-${floor}-${String(slotNum).padStart(2, '0')}`;
+  }
+
+  function getItemsInSlot(code) {
+    return items.filter(i => i.location === code);
+  }
+
+  function getSlotStatus(code) {
+    const list = getItemsInSlot(code);
+    if (!list.length) return 'empty';
+    const totalQty = list.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+    const hasExpired = list.some(i => {
+      const d = daysUntil(i.expiryDate);
+      return d !== null && d <= 15;
+    });
+    if (hasExpired) return 'expired';
+    if (totalQty <= 5) return 'low';
+    return 'occupied';
+  }
+
+  // ==================== 統計 ====================
+  function renderStats() {
+    const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+    const lowStock = items.filter(i => Number(i.quantity) <= 5).length;
+    const skuCount = new Set(items.map(i => i.sku)).size;
+    const nearExpiry = items.filter(i => {
+      const d = daysUntil(i.expiryDate);
+      return d !== null && d <= 30;
+    }).length;
+
+    document.getElementById('stats').innerHTML = `
+      <div class="stat-box"><div class="num">${items.length}</div><div class="label">總筆數</div></div>
+      <div class="stat-box"><div class="num">${skuCount}</div><div class="label">SKU 種類</div></div>
+      <div class="stat-box"><div class="num">${totalQty}</div><div class="label">總庫存數量</div></div>
+      <div class="stat-box"><div class="num" style="color:var(--danger)">${lowStock}</div><div class="label">低庫存 (≤5)</div></div>
+      <div class="stat-box"><div class="num" style="color:var(--warning)">${nearExpiry}</div><div class="label">30日內到期</div></div>
+    `;
+  }
+
+  // ==================== 視覺化圖譜 ====================
+  function renderZoneTabs() {
+    const tabs = document.getElementById('zoneTabs');
+    tabs.innerHTML = layout.zones.map(z =>
+      `<button class="zone-tab ${z.id === currentZoneId ? 'active' : ''}" onclick="switchZone('${z.id}')">${escapeHtml(z.name)}</button>`
+    ).join('');
+  }
+
+  function switchZone(id) {
+    currentZoneId = id;
+    currentFloor = 1;
+    selectedSlotCode = null;
+    hideSlotDetail();
+    renderZoneTabs();
+    updateFloorSelect();
+    renderMap();
+  }
+
+  function updateFloorSelect() {
+    const zone = layout.zones.find(z => z.id === currentZoneId);
+    const sel = document.getElementById('floorSelect');
+    if (!zone) { sel.innerHTML = ''; return; }
+    sel.innerHTML = Array.from({ length: zone.floors }, (_, i) =>
+      `<option value="${i + 1}" ${currentFloor === i + 1 ? 'selected' : ''}>第 ${i + 1} 層</option>`
+    ).join('');
+  }
+
+  document.getElementById('floorSelect').addEventListener('change', function () {
+    currentFloor = Number(this.value);
+    selectedSlotCode = null;
+    hideSlotDetail();
+    renderMap();
+  });
+
+  function renderMap() {
+    const zone = layout.zones.find(z => z.id === currentZoneId);
+    const grid = document.getElementById('mapGrid');
+    if (!zone) {
+      grid.innerHTML = '<div class="empty">請先設定倉庫格局</div>';
+      return;
+    }
+
+    const cols = Math.min(zone.slotsPerFloor, 12);
+    grid.style.gridTemplateColumns = `repeat(${zone.slotsPerFloor}, 72px)`;
+
+    let emptyCount = 0;
+    let html = '';
+    for (let s = 1; s <= zone.slotsPerFloor; s++) {
+      const code = slotCode(zone.name, currentFloor, s);
+      const status = getSlotStatus(code);
+      if (status === 'empty') emptyCount++;
+      const list = getItemsInSlot(code);
+      const totalQty = list.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
+      const firstSku = list[0]?.sku || '';
+      const selected = selectedSlotCode === code ? 'selected' : '';
+
+      html += `
+        <div class="slot ${status} ${selected}" data-code="${escapeHtml(code)}"
+             onclick="onSlotClick(event, '${escapeHtml(code)}')"
+             title="${escapeHtml(code)}">
+          <div class="slot-code">${String(s).padStart(2, '0')}</div>
+          ${status !== 'empty'
+            ? `<div class="slot-qty">${totalQty} 件</div><div class="slot-sku">${escapeHtml(firstSku)}</div>`
+            : `<div class="slot-qty">空</div>`}
+        </div>`;
+    }
+    grid.innerHTML = html;
+    document.getElementById('emptyCount').textContent = `空庫位：${emptyCount} / ${zone.slotsPerFloor}`;
+  }
+
+  function onSlotClick(e, code) {
+    e.stopPropagation();
+    selectedSlotCode = code;
+    renderMap();
+
+    const list = getItemsInSlot(code);
+    const detail = document.getElementById('slotDetail');
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    let content = `<h4>儲位 ${escapeHtml(code)}</h4>`;
+    if (!list.length) {
+      content += `<p style="color:#9aa0a6">此儲位目前為空</p>
+        <div class="btns">
+          <button onclick="openModalForSlot('${escapeHtml(code)}')">＋ 在此入庫</button>
+        </div>`;
+    } else {
+      list.forEach(item => {
+        const d = daysUntil(item.expiryDate);
+        const expText = item.expiryDate
+          ? (d < 0 ? `已過期 ${-d} 天` : d <= 15 ? `${d} 天後到期` : item.expiryDate)
+          : '-';
+        content += `
+          <p><strong>${escapeHtml(item.productName)}</strong></p>
+          <p>SKU：${escapeHtml(item.sku)}　數量：<span class="qty">${item.quantity}</span></p>
+          <p>批號：${escapeHtml(item.batchNo || '-')}　效期：${expText}</p>
+          <div class="btns" style="margin-bottom:10px">
+            <button onclick="editItem('${item.id}'); hideSlotDetail()">編輯</button>
+            <button class="warning" onclick="adjustQty('${item.id}', 1)">＋1</button>
+            <button class="warning" onclick="adjustQty('${item.id}', -1)">－1</button>
+            <button class="secondary" onclick="highlightRow('${item.id}')">在列表顯示</button>
+          </div>`;
+      });
+      content += `<div class="btns"><button onclick="openModalForSlot('${escapeHtml(code)}')">＋ 再入庫此位</button></div>`;
+    }
+
+    detail.innerHTML = content;
+    detail.classList.add('show');
+    // 定位在點擊格子附近
+    const top = window.scrollY + rect.bottom + 8;
+    let left = window.scrollX + rect.left;
+    if (left + 260 > window.innerWidth) left = window.scrollX + rect.right - 260;
+    detail.style.top = top + 'px';
+    detail.style.left = Math.max(8, left) + 'px';
+  }
+
+  function hideSlotDetail() {
+    document.getElementById('slotDetail').classList.remove('show');
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.slot') && !e.target.closest('.slot-detail')) {
+      hideSlotDetail();
+    }
+  });
+
+  function openModalForSlot(code) {
+    openModal();
+    document.getElementById('locationManual').value = code;
+    // 嘗試解析區域樓層
+    const zone = layout.zones.find(z => code.startsWith(z.name.replace(/區$/, '').slice(0, 4)) || code.includes(z.name.slice(0, 2)));
+    if (zone) {
+      document.getElementById('zoneSelect').value = zone.id;
+      updateLocationOptions();
+    }
+  }
+
+  function highlightRow(id) {
+    highlightId = id;
+    renderTable();
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { highlightId = null; renderTable(); }, 3000);
+    }
+    hideSlotDetail();
+  }
+
+  // ==================== 表格 ====================
+  function getFiltered() {
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(i =>
+      (i.sku || '').toLowerCase().includes(q) ||
+      (i.productName || '').toLowerCase().includes(q) ||
+      (i.batchNo || '').toLowerCase().includes(q) ||
+      (i.location || '').toLowerCase().includes(q) ||
+      (i.note || '').toLowerCase().includes(q)
+    );
+  }
+
+  function onSearch() {
+    renderTable();
+    // 搜尋時也刷新地圖高亮（可選）
+  }
+
+  function renderTable() {
+    const filtered = getFiltered();
+    const tbody = document.getElementById('tableBody');
+    const empty = document.getElementById('emptyState');
+    document.getElementById('listInfo').textContent = `顯示 ${filtered.length} / ${items.length} 筆`;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      renderStats();
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = filtered.map(item => {
+      const qtyClass = Number(item.quantity) <= 5 ? 'qty low' : 'qty';
+      const hl = highlightId === item.id ? 'highlight' : '';
+      return `
+        <tr data-id="${item.id}" class="${hl}">
+          <td><strong>${escapeHtml(item.sku)}</strong></td>
+          <td><a href="javascript:void(0)" onclick="focusSlot('${escapeHtml(item.location)}')" style="color:var(--primary)">${escapeHtml(item.location)}</a></td>
+          <td>${escapeHtml(item.productName)}</td>
+          <td class="${qtyClass}">${item.quantity}</td>
+          <td>${escapeHtml(item.batchNo || '-')}</td>
+          <td>${item.expiryDate || '-'}</td>
+          <td>${escapeHtml(item.note || '-')}</td>
+          <td class="actions">
+            ${compareMode
+              ? `<button class="secondary" onclick="selectForCompare('${item.id}')">選擇比對</button>`
+              : `
+                <button onclick="editItem('${item.id}')">編輯</button>
+                <button class="warning" onclick="adjustQty('${item.id}', 1)">＋1</button>
+                <button class="warning" onclick="adjustQty('${item.id}', -1)">－1</button>
+                <button class="danger" onclick="deleteItem('${item.id}')">刪除</button>
+              `}
+          </td>
+        </tr>`;
+    }).join('');
+
+    renderStats();
+  }
+
+  function focusSlot(code) {
+    // 嘗試切換到對應區域與樓層
+    for (const z of layout.zones) {
+      for (let f = 1; f <= z.floors; f++) {
+        for (let s = 1; s <= z.slotsPerFloor; s++) {
+          if (slotCode(z.name, f, s) === code) {
+            currentZoneId = z.id;
+            currentFloor = f;
+            selectedSlotCode = code;
+            renderZoneTabs();
+            updateFloorSelect();
+            renderMap();
+            // 模擬點擊顯示詳情
+            setTimeout(() => {
+              const el = document.querySelector(`.slot[data-code="${CSS.escape(code)}"]`);
+              if (el) el.click();
+            }, 100);
+            return;
+          }
+        }
+      }
+    }
+    // 若找不到自動產生的代碼，仍選中
+    selectedSlotCode = code;
+    renderMap();
+  }
+
+  // ==================== CRUD ====================
+  function updateLocationOptions() {
+    const zoneId = document.getElementById('zoneSelect').value;
+    const floor = Number(document.getElementById('floorSelectForm').value) || 1;
+    const zone = layout.zones.find(z => z.id === zoneId);
+    const slotSel = document.getElementById('slotSelect');
+    if (!zone) {
+      slotSel.innerHTML = '<option value="">—</option>';
+      return;
+    }
+    // 更新樓層選項
+    const floorSel = document.getElementById('floorSelectForm');
+    const prevFloor = floorSel.value;
+    floorSel.innerHTML = Array.from({ length: zone.floors }, (_, i) =>
+      `<option value="${i + 1}">第 ${i + 1} 層</option>`
+    ).join('');
+    if (prevFloor && Number(prevFloor) <= zone.floors) floorSel.value = prevFloor;
+
+    const f = Number(floorSel.value) || 1;
+    slotSel.innerHTML = Array.from({ length: zone.slotsPerFloor }, (_, i) => {
+      const code = slotCode(zone.name, f, i + 1);
+      const status = getSlotStatus(code);
+      const label = status === 'empty' ? `${code} (空)` : `${code} (有貨)`;
+      return `<option value="${code}">${label}</option>`;
+    }).join('');
+  }
+
+  function fillZoneSelects() {
+    const zoneSel = document.getElementById('zoneSelect');
+    zoneSel.innerHTML = layout.zones.map(z =>
+      `<option value="${z.id}">${escapeHtml(z.name)}</option>`
+    ).join('');
+    updateLocationOptions();
+  }
+
+  function openModal(id = null) {
+    document.getElementById('modal').classList.add('show');
+    document.getElementById('itemForm').reset();
+    document.getElementById('editId').value = '';
+    fillZoneSelects();
+
+    if (id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      document.getElementById('modalTitle').textContent = '編輯庫存';
+      document.getElementById('editId').value = item.id;
+      document.getElementById('sku').value = item.sku;
+      document.getElementById('quantity').value = item.quantity;
+      document.getElementById('productName').value = item.productName;
+      document.getElementById('batchNo').value = item.batchNo || '';
+      document.getElementById('expiryDate').value = item.expiryDate || '';
+      document.getElementById('note').value = item.note || '';
+      document.getElementById('locationManual').value = item.location || '';
+    } else {
+      document.getElementById('modalTitle').textContent = '新增入庫';
+      if (selectedSlotCode) {
+        document.getElementById('locationManual').value = selectedSlotCode;
+      }
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('show');
+  }
+
+  function saveItem(e) {
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    const manualLoc = document.getElementById('locationManual').value.trim();
+    const slotLoc = document.getElementById('slotSelect').value;
+    const location = manualLoc || slotLoc;
+
+    if (!location) {
+      alert('請選擇或輸入儲位');
+      return;
+    }
+
+    const data = {
+      sku: document.getElementById('sku').value.trim(),
+      quantity: Number(document.getElementById('quantity').value) || 0,
+      location,
+      productName: document.getElementById('productName').value.trim(),
+      batchNo: document.getElementById('batchNo').value.trim(),
+      expiryDate: document.getElementById('expiryDate').value,
+      note: document.getElementById('note').value.trim()
+    };
+
+    const duplicate = items.find(i => i.sku === data.sku && i.id !== id);
+    if (duplicate) {
+      alert('此 SKU 已存在，請使用不同的 SKU');
+      return;
+    }
+
+    if (id) {
+      const idx = items.findIndex(i => i.id === id);
+      if (idx !== -1) {
+        items[idx] = { ...items[idx], ...data, updatedAt: new Date().toISOString() };
+      }
+    } else {
+      items.push({
+        id: 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        ...data,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    saveData(items);
+    closeModal();
+    renderTable();
+    renderMap();
+  }
+
+  function editItem(id) { openModal(id); }
+
+  function deleteItem(id) {
+    if (!confirm('確定要刪除此筆資料嗎？')) return;
+    items = items.filter(i => i.id !== id);
+    saveData(items);
+    renderTable();
+    renderMap();
+    hideSlotDetail();
+  }
+
+  function adjustQty(id, delta) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    item.quantity = Math.max(0, Number(item.quantity) + delta);
+    item.updatedAt = new Date().toISOString();
+    saveData(items);
+    renderTable();
+    renderMap();
+    // 若詳情開著，重新整理
+    if (selectedSlotCode) {
+      const el = document.querySelector(`.slot[data-code="${CSS.escape(selectedSlotCode)}"]`);
+      if (el) el.click();
+    }
+  }
+
+  // ==================== 比對 ====================
+  function toggleCompareMode() {
+    compareMode = !compareMode;
+    compareSelection = { a: null, b: null };
+    const btn = document.getElementById('compareBtn');
+    const panel = document.getElementById('comparePanel');
+    if (compareMode) {
+      btn.textContent = '❌ 結束比對';
+      btn.classList.add('danger');
+      panel.classList.add('show');
+    } else {
+      btn.textContent = '🔀 比對模式';
+      btn.classList.remove('danger');
+      panel.classList.remove('show');
+    }
+    renderTable();
+    updateCompareDisplay();
+  }
+
+  function selectForCompare(id) {
+    if (!compareSelection.a) compareSelection.a = id;
+    else if (!compareSelection.b && id !== compareSelection.a) compareSelection.b = id;
+    else compareSelection = { a: id, b: null };
+    updateCompareDisplay();
+  }
+
+  function updateCompareDisplay() {
+    const a = items.find(i => i.id === compareSelection.a);
+    const b = items.find(i => i.id === compareSelection.b);
+    document.getElementById('compareAContent').innerHTML = a ? renderCompareItem(a, b) : '尚未選擇';
+    document.getElementById('compareBContent').innerHTML = b ? renderCompareItem(b, a) : '尚未選擇';
+  }
+
+  function renderCompareItem(item, other) {
+    const fields = [
+      ['SKU', 'sku'], ['儲位', 'location'], ['產品名稱', 'productName'],
+      ['庫存數量', 'quantity'], ['批號', 'batchNo'], ['有效日期', 'expiryDate'], ['備註', 'note']
+    ];
+    return fields.map(([label, key]) => {
+      const val = item[key] ?? '-';
+      const otherVal = other ? (other[key] ?? '-') : null;
+      const isDiff = other && String(val) !== String(otherVal);
+      return `<div style="margin-bottom:5px"><strong>${label}：</strong><span class="${isDiff ? 'diff' : ''}">${escapeHtml(String(val))}</span></div>`;
+    }).join('');
+  }
+
+  // ==================== 格局設定 ====================
+  function openLayoutModal() {
+    document.getElementById('layoutModal').classList.add('show');
+    renderZoneList();
+  }
+  function closeLayoutModal() {
+    document.getElementById('layoutModal').classList.remove('show');
+  }
+  function renderZoneList() {
+    const el = document.getElementById('zoneList');
+    if (!layout.zones.length) {
+      el.innerHTML = '<p style="color:#9aa0a6;font-size:13px">尚無區域</p>';
+      return;
+    }
+    el.innerHTML = layout.zones.map(z => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee">
+        <span><strong>${escapeHtml(z.name)}</strong> · ${z.floors} 層 · 每層 ${z.slotsPerFloor} 位</span>
+        <button class="danger" style="padding:3px 10px;font-size:12px" onclick="removeZone('${z.id}')">刪除</button>
+      </div>
+    `).join('');
+  }
+  function addZone() {
+    const name = document.getElementById('newZoneName').value.trim();
+    const floors = Number(document.getElementById('newFloors').value) || 1;
+    const slots = Number(document.getElementById('newSlotsPerFloor').value) || 10;
+    if (!name) { alert('請輸入區域名稱'); return; }
+    layout.zones.push({
+      id: 'z_' + Date.now(),
+      name,
+      floors: Math.min(20, Math.max(1, floors)),
+      slotsPerFloor: Math.min(50, Math.max(1, slots))
+    });
+    document.getElementById('newZoneName').value = '';
+    renderZoneList();
+  }
+  function removeZone(id) {
+    if (layout.zones.length <= 1) {
+      alert('至少需保留一個區域');
+      return;
+    }
+    layout.zones = layout.zones.filter(z => z.id !== id);
+    if (currentZoneId === id) currentZoneId = layout.zones[0].id;
+    renderZoneList();
+  }
+  function saveLayoutAndClose() {
+    saveLayout(layout);
+    if (!layout.zones.find(z => z.id === currentZoneId)) {
+      currentZoneId = layout.zones[0]?.id || '';
+    }
+    closeLayoutModal();
+    renderZoneTabs();
+    updateFloorSelect();
+    renderMap();
+    fillZoneSelects();
+  }
+
+  // ==================== 匯出 / 清空 ====================
+  function exportCSV() {
+    const filtered = getFiltered();
+    if (!filtered.length) { alert('沒有資料可匯出'); return; }
+    const headers = ['SKU', '儲位', '產品名稱', '庫存數量', '批號', '有效日期', '備註'];
+    const rows = filtered.map(i => [
+      i.sku, i.location, i.productName, i.quantity,
+      i.batchNo || '', i.expiryDate || '', i.note || ''
+    ]);
+    const csv = [headers, ...rows]
+      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `庫存_SKU_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function clearAllData() {
+    if (!confirm('確定要清除所有本機庫存資料嗎？（格局設定會保留）')) return;
+    items = [];
+    saveData(items);
+    renderTable();
+    renderMap();
+    hideSlotDetail();
+  }
+
+  // ==================== 初始化 ====================
+  if (items.length === 0) {
+    const z1 = layout.zones[0];
+    const z2 = layout.zones[1] || z1;
+    items = [
+      {
+        id: 'demo1',
+        sku: 'SKU-FROZEN-001',
+        location: slotCode(z1.name, 1, 1),
+        productName: '冷凍牛肉片',
+        quantity: 48,
+        batchNo: 'B20260815',
+        expiryDate: '2026-12-31',
+        note: '示範資料',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'demo2',
+        sku: 'SKU-COLD-002',
+        location: slotCode(z2.name, 1, 3),
+        productName: '冷藏牛奶',
+        quantity: 3,
+        batchNo: 'M20260901',
+        expiryDate: '2026-09-18',
+        note: '低庫存 + 即將到期',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'demo3',
+        sku: 'SKU-DRY-003',
+        location: slotCode(z1.name, 1, 5),
+        productName: '常溫泡麵箱',
+        quantity: 120,
+        batchNo: 'N20260701',
+        expiryDate: '2027-06-30',
+        note: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    saveData(items);
+  }
+
+  currentZoneId = layout.zones[0]?.id || '';
+  renderZoneTabs();
+  updateFloorSelect();
+  renderMap();
+  renderTable();
+
+  // Modal 外部點擊關閉
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target.id === 'modal') closeModal();
+  });
+  document.getElementById('layoutModal').addEventListener('click', e => {
+    if (e.target.id === 'layoutModal') closeLayoutModal();
+  });
+</script>
+</body>
+</html>
