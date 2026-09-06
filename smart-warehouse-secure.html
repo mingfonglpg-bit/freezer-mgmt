@@ -1,0 +1,3892 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧倉儲系統 · SKU · 權限 · 圖譜 · Supabase</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.toast-wrap{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:#1e293b;color:#fff;padding:12px 16px;border-radius:10px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:0;transform:translateX(20px);transition:.25s;max-width:320px;pointer-events:auto}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast.ok{background:#166534}.toast.err{background:#991b1b}.toast.info{background:#1e40af}
+.cloud-badge{font-size:11px;padding:3px 8px;border-radius:10px;background:rgba(255,255,255,.15)}
+.cloud-badge.on{background:#16a34a}.cloud-badge.off{background:rgba(0,0,0,.25)}
+.sync-spin{animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sql-box{background:#0f172a;color:#e2e8f0;font-family:ui-monospace,monospace;font-size:11px;padding:12px;border-radius:8px;max-height:280px;overflow:auto;white-space:pre-wrap;line-height:1.45}
+:root{--primary:#1a73e8;--danger:#d93025;--success:#188038;--warning:#f9ab00;--purple:#7c4dff;--bg:#f0f2f5;--card:#fff;--border:#dadce0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:#202124;line-height:1.5;padding:12px}
+.container{max-width:1500px;margin:0 auto}
+header{background:linear-gradient(135deg,#1a73e8,#0d47a1);color:#fff;padding:14px 18px;border-radius:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+header h1{font-size:1.25rem;font-weight:600}
+.role-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:rgba(255,255,255,.2)}
+.role-admin{background:#f9ab00;color:#202124}.role-operator{background:#aecbfa;color:#174ea6}.role-guest{background:#e8eaed;color:#3c4043}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+input,select,button,textarea{font-size:14px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(26,115,232,.2)}
+button{background:var(--primary);color:#fff;border:none;cursor:pointer;font-weight:500}
+button:hover{opacity:.92}button:disabled{opacity:.45;cursor:not-allowed}
+button.secondary{background:#5f6368}button.danger{background:var(--danger)}button.success{background:var(--success)}
+button.warning{background:var(--warning);color:#202124}button.outline{background:#fff;color:var(--primary);border:1px solid var(--primary)}
+button.report-btn{background:var(--purple)}button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
+.search-box{flex:1;min-width:180px;position:relative}.search-box input{width:100%;padding-left:34px}
+.search-box::before{content:"🔍";position:absolute;left:10px;top:50%;transform:translateY(-50%)}
+.card{background:var(--card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;margin-bottom:14px}
+.card-header{padding:10px 14px;border-bottom:1px solid var(--border);background:#f8f9fa;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.card-header h2{font-size:1rem;font-weight:600}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.stat-box{background:#fff;padding:8px 14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);min-width:100px}
+.stat-box .num{font-size:1.3rem;font-weight:700;color:var(--primary)}.stat-box .label{font-size:11px;color:#5f6368}
+.zone-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.zone-tab{padding:5px 12px;border-radius:16px;background:#e8eaed;border:none;color:#3c4043;cursor:pointer;font-size:12px}
+.zone-tab.active{background:var(--primary);color:#fff}
+.map-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;margin-bottom:8px}
+.legend-item{display:flex;align-items:center;gap:5px}.legend-color{width:14px;height:14px;border-radius:3px;border:1px solid #ccc}
+.map-grid-wrapper{overflow-x:auto;padding:10px 0}
+.map-grid{display:grid;gap:10px;justify-content:stretch;grid-auto-flow:row;width:100%}
+.slot{min-width:80px;width:100%;aspect-ratio:1;border-radius:14px;border:2.5px solid #cbd5e1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:12px;background:linear-gradient(160deg,#eef2ff 0%,#e0e7ff 100%);user-select:none;transition:.15s;box-shadow:0 2px 6px rgba(0,0,0,.06);padding:4px;overflow:hidden;position:relative}
+.slot:hover{transform:scale(1.04);box-shadow:0 6px 18px rgba(0,0,0,.14);z-index:2}
+.slot.occupied{background:linear-gradient(160deg,#d1fae5 0%,#a7f3d0 100%);border-color:#10b981}
+.slot.low{background:linear-gradient(160deg,#fef3c7 0%,#fde68a 100%);border-color:#f59e0b}
+.slot.expired{background:linear-gradient(160deg,#fee2e2 0%,#fecaca 100%);border-color:#ef4444}
+.slot.selected{border-color:#6366f1;box-shadow:0 0 0 4px rgba(99,102,241,.35);transform:scale(1.04)}
+.slot .slot-code{font-weight:700;font-size:14px;color:#1e293b;letter-spacing:-0.02em;line-height:1.2}
+.slot .slot-prod{font-size:11px;color:#334155;font-weight:600;text-align:center;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-top:2px;min-height:28px}
+.slot .slot-qty{font-size:12px;color:#475569;margin-top:1px;font-weight:500}
+.slot .slot-count{font-size:10px;color:#64748b;margin-top:1px}
+.slot.empty .slot-qty{color:#94a3b8}
+.slot .carousel-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#94a3b8;margin:0 1px}
+.slot .carousel-dot.active{background:#1e293b}
+.slot .slot-dots{margin-top:2px;line-height:1}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--border)}
+th{background:#f1f3f4;font-weight:600;position:sticky;top:0;white-space:nowrap;z-index:1}
+th.sortable{cursor:pointer;user-select:none;padding-right:18px;position:relative}
+th.sortable:hover{background:#e8eaed}
+th.sortable .sort-icon{font-size:10px;opacity:.5;margin-left:2px}
+th.sortable.asc .sort-icon::after{content:"▲";opacity:1}
+th.sortable.desc .sort-icon::after{content:"▼";opacity:1}
+th.sortable:not(.asc):not(.desc) .sort-icon::after{content:"⇅"}
+.bulk-input{width:56px;padding:4px 6px;font-size:13px;border:1px solid var(--border);border-radius:6px;text-align:right}
+.bulk-input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 2px rgba(26,115,232,.2)}
+.bulk-unit-select{width:58px;padding:3px 2px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:#fff}
+.bulk-cell{display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
+.jump-toggle{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:16px;background:#e8eaed;border:none;color:#3c4043;cursor:pointer;font-size:12px;font-weight:500;transition:.15s}
+.jump-toggle.active{background:#6366f1;color:#fff}
+.jump-toggle:hover{opacity:.9}
+.marquee-wrap{display:flex;align-items:center;background:linear-gradient(90deg,#1e3a5f,#1a73e8);color:#fff;border-radius:10px;margin-bottom:12px;overflow:hidden;height:36px}
+.marquee-label{background:rgba(0,0,0,.25);padding:0 12px;font-size:12px;font-weight:700;white-space:nowrap;height:100%;display:flex;align-items:center}
+.marquee-track{flex:1;overflow:hidden;position:relative;height:100%}
+.marquee-text{position:absolute;white-space:nowrap;font-size:13px;line-height:36px;padding-left:100%;animation:marquee 28s linear infinite}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+.expiry-banner{background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#92400e}
+.expiry-banner-inner{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.expiry-range-btns{display:flex;gap:4px;flex-wrap:wrap}
+.exp-range-btn{padding:4px 10px;font-size:11px;border-radius:14px;border:1px solid #f59e0b;background:#fff;color:#92400e;cursor:pointer}
+.exp-range-btn.active{background:#f59e0b;color:#fff;font-weight:600;border-color:#d97706}
+.fav-colors{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.fav-slot{width:28px;height:28px;border-radius:6px;border:2px dashed #ccc;cursor:pointer;position:relative}
+.fav-slot.filled{border-style:solid}
+.map-cols-select{font-size:12px;padding:5px 8px;border-radius:8px;min-width:100px}
+.mobile-card-list{display:none;padding:8px;gap:10px;flex-direction:column}
+.mobile-sort-bar{display:none;gap:6px;padding:8px 10px;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+.mobile-sort-bar button{flex:0 0 auto;padding:6px 12px;font-size:12px;border-radius:16px;background:#e8eaed;color:#3c4043;border:none;white-space:nowrap}
+.mobile-sort-bar button.active{background:var(--primary);color:#fff}
+.inv-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.inv-card.highlight{outline:2px solid var(--primary)}
+.inv-card .ic-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px}
+.inv-card .ic-title{font-weight:700;font-size:14px;color:#1e293b}
+.inv-card .ic-sku{font-size:11px;color:#64748b}
+.inv-card .ic-row{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:#475569;margin-bottom:4px}
+.inv-card .ic-row strong{color:#334155}
+.inv-card .ic-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid #f1f3f4}
+.inv-card .ic-actions button{padding:6px 10px;font-size:12px;flex:1;min-width:calc(33% - 6px)}
+.inv-card .ic-chk{margin-right:6px;transform:scale(1.15)}
+.inv-card.collapsed .ic-detail,.inv-card.collapsed .ic-actions{display:none}
+.inv-card .ic-toggle{font-size:11px;color:var(--primary);background:none;border:none;padding:2px 6px;cursor:pointer;flex:0}
+.map-tools-panel{max-height:200px;overflow:hidden;transition:max-height .25s ease,opacity .2s}
+.map-tools-panel.collapsed{max-height:0;opacity:0;padding:0!important;border:none}
+.info-toggle-bar{margin-bottom:8px}
+.info-toggle-btn{width:100%;padding:8px 12px;font-size:13px;background:#f1f3f4;color:#3c4043;border:1px solid var(--border);border-radius:10px;text-align:left;display:flex;justify-content:space-between;align-items:center}
+.info-panel{margin-bottom:10px;transition:max-height .3s ease,opacity .25s,margin .25s}
+.info-panel.collapsed{display:none}
+.toolbar-extra{display:contents}
+.more-tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.more-tools-grid button{width:100%;padding:12px 8px;font-size:13px}
+.batch-bar{display:none;align-items:center;gap:8px;padding:8px 14px;background:#eef2ff;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.batch-bar.show{display:flex}
+.batch-bar .count{font-weight:600;color:#4338ca;font-size:13px}
+th.chk,td.chk{width:32px;text-align:center}
+.slot-color-btn{width:18px;height:18px;border-radius:4px;border:1px solid #ccc;cursor:pointer;padding:0;min-width:18px}
+tr:hover{background:#f8f9fa}tr.highlight{background:#e8f0fe!important}
+.qty{font-weight:600;color:var(--primary)}.qty.low{color:var(--danger)}
+.unit-tag{display:inline-block;background:#e8f0fe;color:#1967d2;font-size:11px;padding:1px 5px;border-radius:4px}
+.status-badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:10px;font-weight:500}
+.status-報廢,.status-異常{background:#fce8e6;color:#c5221f}.status-移位,.status-補貨{background:#e8f0fe;color:#1967d2}
+.status-出清,.status-即期{background:#fef7e0;color:#e37400}.status-散貨,.status-正常{background:#e6f4ea;color:#137333}
+.actions{display:flex;gap:3px;flex-wrap:wrap}.actions button{padding:2px 7px;font-size:11px}
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;flex-wrap:wrap}
+.pagination button{min-width:36px;padding:6px 10px}.pagination .page-info{font-size:13px;color:#5f6368;margin:0 8px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;padding:20px}
+.modal h2{margin-bottom:12px;font-size:1.15rem}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-group{display:flex;flex-direction:column;gap:4px}.form-group.full{grid-column:1/-1}
+.form-group label{font-size:12px;font-weight:500;color:#5f6368}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.qty-unit-row{display:flex;gap:8px}.qty-unit-row input{flex:1}.qty-unit-row select{width:88px}
+.compare-panel{display:none;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}.compare-panel.show{display:grid}
+.compare-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:12px}.diff{background:#fff3cd;padding:1px 5px;border-radius:3px}
+.slot-detail{position:absolute;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:12px;z-index:50;min-width:230px;max-width:300px;display:none;border:1px solid var(--border)}
+.slot-detail.show{display:block}.slot-detail h4{margin-bottom:6px;font-size:13px}.slot-detail p{font-size:12px;margin-bottom:3px}
+.slot-detail .btns{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap}
+.login-screen{max-width:400px;margin:60px auto;background:#fff;border-radius:16px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.1)}
+.login-screen h1{text-align:center;margin-bottom:8px;font-size:1.3rem}.login-screen .sub{text-align:center;color:#5f6368;font-size:13px;margin-bottom:20px}
+.login-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.login-tabs button{flex:1;background:none;color:#5f6368;border:none;border-bottom:2px solid transparent;border-radius:0;padding:10px}
+.login-tabs button.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.pending-badge{background:var(--danger);color:#fff;font-size:11px;padding:1px 6px;border-radius:10px;margin-left:4px}
+.notice{background:#e8f0fe;border:1px solid #aecbfa;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px;color:#174ea6}
+.notice.warn{background:#fef7e0;border-color:#fde293;color:#e37400}
+.empty{text-align:center;padding:30px;color:#5f6368}
+.report-type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(85px,1fr));gap:6px;margin-bottom:10px}
+.report-type-btn{padding:8px 6px;border:2px solid var(--border);border-radius:8px;background:#fff;color:#3c4043;cursor:pointer;font-size:12px;text-align:center}
+.report-type-btn.selected{border-color:var(--purple);background:#f3e8ff;color:#5e35b1;font-weight:600}
+.report-history{max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:#f8f9fa;font-size:12px}
+.import-hint{font-size:12px;color:#5f6368;background:#f8f9fa;padding:10px;border-radius:8px;margin-bottom:10px;line-height:1.55}
+.import-preview{max-height:180px;overflow:auto;font-size:12px;border:1px solid var(--border);border-radius:8px;margin-top:8px}
+.hidden{display:none!important}#slotFilterBar:not(.hidden){display:flex!important}
+/* 平板 */
+@media(max-width:1024px){
+  body{padding:8px}
+  .container{max-width:100%}
+  .slot{min-width:70px}
+  .slot .slot-prod{font-size:10px;min-height:24px}
+  th,td{padding:6px 4px;font-size:12px}
+  .actions button{padding:4px 8px;font-size:12px}
+  .batch-bar{padding:10px;gap:6px}
+  .batch-bar button{flex:1;min-width:calc(50% - 6px)}
+}
+/* 手機 */
+@media(max-width:768px){
+  body{padding:6px}
+  header{padding:10px 12px}
+  header h1{font-size:1.05rem}
+  .form-grid{grid-template-columns:1fr}
+  .compare-panel{grid-template-columns:1fr}
+  .stats{gap:6px}
+  .stat-box{min-width:calc(33.33% - 6px);padding:6px 8px;flex:1}
+  .stat-box .num{font-size:1.1rem}
+  .toolbar{gap:6px}
+  .toolbar button{padding:7px 10px;font-size:12px}
+  .search-box{min-width:100%;flex:1 1 100%}
+  .slot{min-width:56px;border-radius:10px;padding:4px 3px;border-width:1.5px}
+  /* 庫位號碼：滿版淡色浮水印，在文字後方 */
+  .slot .slot-code{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:clamp(28px,9vw,42px);font-weight:800;line-height:1;
+    color:rgba(30,41,59,.14);z-index:0;pointer-events:none;
+  }
+  .slot .slot-prod,.slot .slot-qty,.slot .slot-count,.slot .slot-dots{
+    position:relative;z-index:1;
+  }
+  .slot .slot-prod{font-size:10px;min-height:auto;-webkit-line-clamp:2;color:#1e293b;font-weight:700;opacity:1}
+  .slot .slot-qty{font-size:11px;color:#334155;font-weight:600;opacity:1}
+  .slot .slot-count{font-size:9px;color:#64748b;opacity:.9}
+  .slot.occupied{background:linear-gradient(160deg,rgba(209,250,229,.55) 0%,rgba(167,243,208,.45) 100%)!important;border-color:rgba(16,185,129,.45)}
+  .slot.low{background:linear-gradient(160deg,rgba(254,243,199,.55) 0%,rgba(253,230,138,.45) 100%)!important;border-color:rgba(245,158,11,.45)}
+  .slot.expired{background:linear-gradient(160deg,rgba(254,226,226,.55) 0%,rgba(254,202,202,.45) 100%)!important;border-color:rgba(239,68,68,.45)}
+  .slot:not(.occupied):not(.low):not(.expired){background:linear-gradient(160deg,rgba(238,242,255,.5) 0%,rgba(224,231,255,.4) 100%)!important;border-color:rgba(203,213,225,.5)}
+  .inv-card{transition:transform .2s,opacity .2s;touch-action:pan-y}
+  .inv-card.swiping{transition:none}
+  .map-grid-wrapper{touch-action:pan-y}
+  .table-wrap{display:none!important}
+  .mobile-card-list{display:flex}
+  .mobile-sort-bar{display:flex}
+  .map-cols-select{display:inline-block}
+  .batch-bar{flex-direction:column;align-items:stretch}
+  .batch-bar button{width:100%}
+  .modal{padding:14px;max-height:85vh}
+  .slot-detail{max-width:min(300px,calc(100vw - 24px));left:12px!important;right:12px}
+  .marquee-wrap{height:32px}
+  .marquee-text{font-size:12px;line-height:32px}
+  .pagination button{min-width:32px;padding:5px 8px;font-size:12px}
+  /* 手機：次要功能鍵收進「功能」選單 */
+  .toolbar-extra{display:none!important}
+  #btnMoreTools{display:inline-block}
+  #btnHeat{display:none!important}
+  .info-toggle-bar{display:block}
+}
+@media(min-width:769px){
+  .mobile-card-list,.mobile-sort-bar{display:none!important}
+  .map-cols-select{display:none}
+  #btnMoreTools,.info-toggle-bar{display:none!important}
+  .info-panel{display:block!important}
+  .info-panel.collapsed{display:block!important}
+  .toolbar-extra{display:contents}
+}
+@media(max-width:480px){
+  .stat-box{min-width:calc(50% - 6px)}
+  .zone-tab{padding:4px 8px;font-size:11px}
+  .slot{min-width:48px}
+  .slot .slot-code{font-size:clamp(24px,10vw,36px)}
+}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+  <h1>📦 智慧倉儲系統</h1>
+  <p class="sub">SKU · 庫存 · 圖譜 · 權限控管</p>
+  <div class="login-tabs">
+    <button type="button" class="active" id="tabLogin" onclick="switchLoginTab('login')">登入</button>
+    <button type="button" id="tabReg" onclick="switchLoginTab('reg')">註冊</button>
+  </div>
+  <div id="loginForm">
+    <div class="form-group full" style="margin-bottom:10px"><label>帳號</label><input type="text" id="loginUser" placeholder="帳號"></div>
+    <div class="form-group full" style="margin-bottom:14px"><label>密碼</label><input type="password" id="loginPass" placeholder="密碼"></div>
+    <button style="width:100%;padding:10px" onclick="doLogin()">🚀 登入系統</button>
+    <button class="outline" style="width:100%;margin-top:8px;padding:10px" onclick="enterAsGuest()">👀 訪客瀏覽（僅檢視）</button>
+    <p style="font-size:11px;color:#5f6368;margin-top:12px;line-height:1.45">🔐 密碼以 PBKDF2 雜湊儲存 · Session 8 小時自動過期<br>☁ 啟用雲端後可用 <strong>Email</strong> 走 Supabase Auth 登入</p>
+  </div>
+  <div id="regForm" class="hidden">
+    <div class="form-group full" style="margin-bottom:10px"><label>帳號 *</label><input type="text" id="regUser" placeholder="至少 3 字元"></div>
+    <div class="form-group full" style="margin-bottom:10px"><label>密碼 *</label><input type="password" id="regPass" placeholder="至少 4 字元"></div>
+    <div class="form-group full" style="margin-bottom:14px"><label>角色</label>
+      <select id="regRole" onchange="onRegRoleChange()">
+        <option value="operator">現場操作員（異動需審核）</option>
+        <option value="admin" id="regRoleAdmin">系統管理員（僅限 1 人）</option>
+      </select>
+      <p id="regAdminLockHint" style="font-size:11px;color:#c5221f;margin-top:6px;display:none">※ 系統已有管理員，管理身分已鎖定，僅可註冊操作員</p>
+    </div>
+    <button style="width:100%;padding:10px" onclick="doRegister()">送出註冊</button>
+  </div>
+</div>
+
+<!-- 強制修改預設管理員帳密 -->
+<div class="modal-overlay" id="forceChangeModal">
+  <div class="modal" style="max-width:420px">
+    <h2>🔐 請立即修改管理員帳密</h2>
+    <p style="font-size:13px;color:#5f6368;margin-bottom:12px">您正在使用系統預設帳號首次登入，為確保安全，必須設定新的帳號與密碼後才能進入系統。</p>
+    <div class="form-group full" style="margin-bottom:10px"><label>新帳號 *</label><input type="text" id="forceNewUser" placeholder="至少 3 字元，不可使用 admin"></div>
+    <div class="form-group full" style="margin-bottom:10px"><label>新密碼 *</label><input type="password" id="forceNewPass" placeholder="至少 6 字元"></div>
+    <div class="form-group full" style="margin-bottom:14px"><label>確認新密碼 *</label><input type="password" id="forceNewPass2" placeholder="再輸入一次新密碼"></div>
+    <div class="modal-actions">
+      <button type="button" class="success" style="width:100%;padding:10px" onclick="submitForceChange()">確認並進入系統</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase 雲端設定 -->
+<div class="modal-overlay" id="cloudModal">
+  <div class="modal" style="max-width:560px">
+    <h2>☁ Supabase 雲端設定</h2>
+    <p style="font-size:13px;color:#5f6368;margin-bottom:12px">本機優先寫入，開啟雲端後可雙向同步。請先在 Supabase 專案執行下方 SQL 建立資料表。</p>
+    <div class="form-group full" style="margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="cloudEnabled"> 啟用雲端同步
+      </label>
+    </div>
+    <div class="form-group full" style="margin-bottom:10px">
+      <label>Project URL</label>
+      <input type="text" id="cloudUrl" placeholder="https://xxxx.supabase.co">
+    </div>
+    <div class="form-group full" style="margin-bottom:10px">
+      <label>anon public key</label>
+      <textarea id="cloudKey" rows="3" placeholder="eyJhbGciOi..." style="width:100%;resize:vertical"></textarea>
+    </div>
+    <div style="margin:12px 0 8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+      <strong style="font-size:13px">① 在 Supabase SQL Editor 執行</strong>
+      <button type="button" class="secondary" style="padding:4px 10px;font-size:12px" onclick="copySupabaseSQL()">複製 SQL</button>
+    </div>
+    <div class="sql-box" id="supabaseSqlBox"></div>
+    <p style="font-size:12px;color:#5f6368;margin:10px 0">② 儲存設定 → ③ 按「合併同步」：會把本機與雲端資料依 ID 合併（較新為準），再寫回雲端，多裝置不會互蓋。</p>
+    <div class="modal-actions" style="flex-wrap:wrap">
+      <button type="button" class="secondary" onclick="closeCloudModal()">關閉</button>
+      <button type="button" class="outline" onclick="testCloudConnection()">測試連線</button>
+      <button type="button" class="success" onclick="mergeSyncWithCloud(false)">🔄 合併同步</button>
+      <button type="button" onclick="saveCloudConfig()">儲存設定</button>
+    </div>
+    <p id="cloudStatusMsg" style="font-size:12px;margin-top:10px;color:#5f6368"></p>
+  </div>
+</div>
+
+<div id="app" class="container hidden">
+  <header>
+    <div>
+      <h1>📦 智慧倉儲 · SKU + 圖譜 + 權限</h1>
+      <div style="font-size:12px;opacity:.9;margin-top:2px"><span id="userLabel"></span> <span id="roleBadge" class="role-badge"></span></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span class="cloud-badge off" id="cloudBadge" title="雲端連線狀態">☁ 本機</span>
+      <button class="ghost" id="btnCloud" onclick="openCloudModal()" title="Supabase 雲端設定">☁ 雲端</button>
+      <button class="ghost" id="btnSync" onclick="syncWithCloud()" title="與雲端同步">🔄 同步</button>
+      <button class="ghost" id="btnPending" onclick="openPendingModal()" style="display:none">📋 待審核 <span class="pending-badge" id="pendingCount">0</span></button>
+      <button class="ghost" id="btnUsers" onclick="openUsersModal()" style="display:none">👤 使用者</button>
+      <button class="ghost" onclick="doLogout()">🚪 登出</button>
+    </div>
+  </header>
+  <div class="toast-wrap" id="toastWrap"></div>
+  <!-- 跑馬燈公告 -->
+  <div class="marquee-wrap" id="marqueeWrap">
+    <div class="marquee-label">公告</div>
+    <div class="marquee-track"><div class="marquee-text" id="marqueeText">請依庫位原有編號入庫　｜　更新日期：載入中...</div></div>
+  </div>
+  <!-- 可隱藏資訊區 -->
+  <div class="info-toggle-bar">
+    <button type="button" class="info-toggle-btn" id="infoToggleBtn" onclick="toggleInfoPanel()">📋 統計／提醒 <span id="infoToggleArrow">▼</span></button>
+  </div>
+  <div class="info-panel" id="infoPanel">
+    <!-- 效期自動檢查推播 -->
+    <div class="expiry-banner" id="expiryBanner" style="display:none">
+      <div class="expiry-banner-inner">
+        <span id="expiryBannerMsg"></span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="expiryCheckToggle" checked onchange="toggleExpiryCheck()"> 效期檢查
+          </label>
+          <div class="expiry-range-btns" id="expiryRangeBtns">
+            <button type="button" class="exp-range-btn active" data-range="30" onclick="setExpiryRange(30)">即期≤30</button>
+            <button type="button" class="exp-range-btn" data-range="60" onclick="setExpiryRange(60)">≤60日</button>
+            <button type="button" class="exp-range-btn" data-range="90" onclick="setExpiryRange(90)">≤90日</button>
+          </div>
+          <button type="button" class="secondary" style="padding:3px 8px;font-size:11px" onclick="document.getElementById('expiryBanner').style.display='none'">關閉</button>
+        </div>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+  <div class="toolbar">
+    <div class="search-box"><input type="text" id="searchInput" placeholder="搜尋 SKU / 產品 / 批號 / 儲位 / 狀態..." oninput="onSearch()"></div>
+    <button id="btnAdd" onclick="openModal()">＋ 新增入庫</button>
+    <button type="button" class="outline" id="btnMoreTools" onclick="openMoreTools()">☰ 功能</button>
+    <div class="toolbar-extra" id="toolbarExtra">
+      <button type="button" class="secondary" id="btnFilterScrap" onclick="toggleScrapFilter();closeMoreTools()" title="隱藏報廢品項">🗑 過濾報廢</button>
+      <button class="outline" id="btnImport" onclick="openImportModal();closeMoreTools()">📤 匯入 CSV</button>
+      <button class="secondary" id="btnExport" onclick="exportCSV();closeMoreTools()">📥 匯出 CSV</button>
+      <button class="outline" id="btnExportXls" onclick="exportExcel();closeMoreTools()">📊 匯出 Excel</button>
+      <button class="warning" id="btnBatch" onclick="toggleBatchMode();closeMoreTools()">☑️ 批次選擇</button>
+      <button class="outline" id="btnLayout" onclick="openLayoutModal();closeMoreTools()">⚙️ 格局設定</button>
+      <button class="warning" id="compareBtn" onclick="toggleCompareMode();closeMoreTools()">🔀 比對</button>
+      <button class="secondary" id="btnClear" onclick="clearAllData();closeMoreTools()">🗑 清空</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="moreToolsModal"><div class="modal" style="max-width:360px">
+    <h2>☰ 功能選單</h2>
+    <div id="moreToolsBody" class="more-tools-grid"></div>
+    <div class="modal-actions"><button type="button" class="secondary" onclick="closeMoreTools()">關閉</button></div>
+  </div></div>
+  <div class="compare-panel" id="comparePanel">
+    <div class="compare-card"><h3 style="font-size:14px;color:var(--primary);margin-bottom:8px">項目 A</h3><div id="compareAContent">尚未選擇</div></div>
+    <div class="compare-card"><h3 style="font-size:14px;color:var(--primary);margin-bottom:8px">項目 B</h3><div id="compareBContent">尚未選擇</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h2>🗺️ 儲位視覺化圖譜</h2>
+      <button type="button" class="secondary" id="mapToolsToggle" onclick="toggleMapTools()" style="padding:5px 10px;font-size:12px">工具／區域 <span id="mapToolsArrow">▶</span></button>
+    </div>
+    <div id="mapToolsPanel" class="map-tools-panel collapsed">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid #eee">
+        <div class="zone-tabs" id="zoneTabs"></div>
+        <select id="floorSelect" onchange="onFloorChange()" style="min-width:80px"></select>
+        <select id="mapColsSelect" class="map-cols-select" onchange="onMapColsChange()" title="手機版圖譜欄數">
+          <option value="auto">欄數：自動</option>
+          <option value="2">2 格 × 多排</option>
+          <option value="3">3 格 × 多排</option>
+          <option value="4">4 格 × 多排</option>
+          <option value="5">5 格 × 多排</option>
+        </select>
+        <button type="button" class="jump-toggle" id="jumpToggle" onclick="toggleJumpMode()" title="開啟後點擊庫位會直接跳到下方列表並篩選該庫位">📋 點擊跳轉列表</button>
+      </div>
+    </div>
+    <div style="padding:12px 14px">
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-color" style="background:linear-gradient(160deg,#eef2ff,#e0e7ff);border-color:#a5b4fc"></div>空</div>
+        <div class="legend-item"><div class="legend-color" style="background:linear-gradient(160deg,#d1fae5,#a7f3d0);border-color:#10b981"></div>有貨</div>
+        <div class="legend-item"><div class="legend-color" style="background:linear-gradient(160deg,#fef3c7,#fde68a);border-color:#f59e0b"></div>低庫存</div>
+        <div class="legend-item"><div class="legend-color" style="background:linear-gradient(160deg,#fee2e2,#fecaca);border-color:#ef4444"></div>即期/過期</div>
+        <div class="legend-item" id="emptyCount" style="margin-left:auto;font-weight:600;color:#5f6368"></div>
+      </div>
+      <div class="map-grid-wrapper"><div class="map-grid" id="mapGrid"></div></div>
+    </div>
+  </div>
+  <div class="slot-detail" id="slotDetail"></div>
+  <div class="card">
+    <div class="card-header"><h2>📋 庫存列表</h2><span id="listInfo" style="font-size:12px;color:#5f6368"></span></div>
+    <div class="batch-bar" id="batchBar">
+      <span class="count" id="batchCount">已選 0 筆</span>
+      <button type="button" class="success" style="padding:4px 10px;font-size:12px" onclick="batchMove()">🔀 批次移庫</button>
+      <button type="button" class="danger" style="padding:4px 10px;font-size:12px" onclick="batchDelete()">🗑 批次刪除</button>
+      <button type="button" class="outline" style="padding:4px 10px;font-size:12px" onclick="exportSelectedExcel()">📊 匯出已選 Excel</button>
+      <button type="button" class="secondary" style="padding:4px 10px;font-size:12px" onclick="clearBatchSelection()">取消選擇</button>
+    </div>
+    <div id="slotFilterBar" class="hidden" style="margin:0 14px 10px;padding:8px 12px;background:#e8f0fe;border-radius:8px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <span class="sf-text" style="color:#174ea6;font-weight:500"></span>
+      <button type="button" class="secondary" style="padding:4px 10px;font-size:12px" onclick="clearSlotFilter()">顯示全部庫位</button>
+    </div>
+    <!-- 手機排序快捷列 -->
+    <div class="mobile-sort-bar" id="mobileSortBar">
+      <button type="button" onclick="sortTable('sku')">SKU</button>
+      <button type="button" onclick="sortTable('location')">儲位</button>
+      <button type="button" onclick="sortTable('productName')">品名</button>
+      <button type="button" onclick="sortTable('quantity')">數量</button>
+      <button type="button" onclick="sortTable('status')">狀態</button>
+      <button type="button" onclick="sortTable('expiryDate')">效期</button>
+    </div>
+    <div id="mobileCardList" class="mobile-card-list"></div>
+    <div class="table-wrap" style="overflow-x:auto"><table>
+      <thead><tr>
+        <th class="chk"><input type="checkbox" id="chkAll" onclick="toggleSelectAll(this)" title="全選本頁"></th>
+        <th class="sortable" data-sort="sku" onclick="sortTable('sku')">SKU <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="location" onclick="sortTable('location')">儲位 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="productName" onclick="sortTable('productName')">產品名稱 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="quantity" onclick="sortTable('quantity')">數量 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="unit" onclick="sortTable('unit')">單位 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="bulkQty" onclick="sortTable('bulkQty')">散裝 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="status" onclick="sortTable('status')">狀態 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="batchNo" onclick="sortTable('batchNo')">批號 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="expiryDate" onclick="sortTable('expiryDate')">有效日期 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="note" onclick="sortTable('note')">備註 <span class="sort-icon"></span></th>
+        <th>操作</th>
+      </tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+    <div id="emptyState" class="empty hidden">尚無資料，請新增或匯入 CSV</div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal"><div class="modal">
+  <h2 id="modalTitle">新增入庫</h2>
+  <form id="itemForm" onsubmit="saveItem(event)"><input type="hidden" id="editId">
+  <div class="form-grid">
+    <div class="form-group"><label>SKU *</label><input type="text" id="sku" required></div>
+    <div class="form-group"><label>庫存數量 *</label><div class="qty-unit-row">
+      <input type="number" id="quantity" required min="0" step="any" value="1">
+      <select id="unit"><option>個</option><option>包</option><option>片</option><option>KG</option><option>箱</option><option>袋</option><option>瓶</option><option>罐</option><option>盒</option><option>卷</option><option>組</option><option>打</option><option>其他</option></select>
+    </div></div>
+    <div class="form-group"><label>散裝數量</label>
+      <div class="qty-unit-row">
+        <input type="number" id="bulkQty" min="0" step="any" value="0" placeholder="0">
+        <select id="bulkUnit"><option>個</option><option>包</option><option>片</option><option>KG</option><option>箱</option><option>袋</option><option>瓶</option><option>罐</option><option>盒</option><option>卷</option><option>組</option><option>打</option><option>其他</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>區域</label><select id="zoneSelect" onchange="updateLocationOptions()"></select></div>
+    <div class="form-group"><label>樓層</label><select id="floorSelectForm" onchange="updateLocationOptions()"></select></div>
+    <div class="form-group"><label>儲位號</label><select id="slotSelect"></select></div>
+    <div class="form-group"><label>或手動輸入儲位</label><input type="text" id="locationManual" placeholder="例：常溫區1F-1"></div>
+    <div class="form-group full"><label>產品名稱 *</label><input type="text" id="productName" required></div>
+    <div class="form-group"><label>批號</label><input type="text" id="batchNo"></div>
+    <div class="form-group"><label>有效日期</label><input type="date" id="expiryDate"></div>
+    <div class="form-group full"><label>備註</label><textarea id="note" rows="2"></textarea></div>
+  </div>
+  <div class="modal-actions"><button type="button" class="secondary" onclick="closeModal()">取消</button><button type="submit" class="success" id="btnSaveItem">儲存</button></div>
+  </form>
+</div></div>
+
+<div class="modal-overlay" id="reportModal"><div class="modal">
+  <h2>📢 回報 / 補貨</h2>
+  <p id="reportTarget" style="font-size:13px;color:#5f6368;margin-bottom:10px"></p>
+  <input type="hidden" id="reportItemId">
+  <label style="font-size:12px;font-weight:500;color:#5f6368">選擇回報類別</label>
+  <div class="report-type-grid">
+    <button type="button" class="report-type-btn" data-type="報廢" onclick="selectReportType(this)">🗑 報廢</button>
+    <button type="button" class="report-type-btn" data-type="異常" onclick="selectReportType(this)">⚠️ 異常</button>
+    <button type="button" class="report-type-btn" data-type="移位" onclick="selectReportType(this)">🔀 移位</button>
+    <button type="button" class="report-type-btn" data-type="出清" onclick="selectReportType(this)">📦 出清</button>
+    <button type="button" class="report-type-btn" data-type="散貨" onclick="selectReportType(this)">🧩 散貨</button>
+    <button type="button" class="report-type-btn" data-type="即期" onclick="selectReportType(this)">⏳ 即期</button>
+    <button type="button" class="report-type-btn" data-type="補貨" onclick="selectReportType(this)">📥 補貨</button>
+    <button type="button" class="report-type-btn" data-type="正常" onclick="selectReportType(this)">✅ 正常</button>
+  </div>
+  <div class="form-group full" style="margin:10px 0"><label>補充說明</label><textarea id="reportNote" rows="2"></textarea></div>
+  <div class="form-group full"><label>回報紀錄</label><div class="report-history" id="reportHistory">尚無紀錄</div></div>
+  <div class="modal-actions"><button type="button" class="secondary" onclick="closeReportModal()">取消</button><button type="button" class="report-btn" onclick="submitReport()">送出回報</button></div>
+</div></div>
+
+<div class="modal-overlay" id="importModal"><div class="modal">
+  <h2>📤 匯入 CSV</h2>
+  <div class="import-hint">表頭：SKU、儲位、產品名稱、<strong>庫存數量</strong>（系統「數量」欄位資料來源）、單位、散裝、散裝單位、狀態、批號、有效日期、備註<br>儲位格式：<code>常溫區1F-1</code>、<code>極冷庫-右2F-3</code>（含 F 標示樓層）</div>
+  <div class="form-group full"><label>選擇 CSV</label><input type="file" id="csvFile" accept=".csv,text/csv" onchange="previewCSV(event)"></div>
+  <div class="form-group full" style="margin-top:8px"><label>匯入模式</label>
+    <select id="importMode"><option value="merge">合併（同 SKU 更新）</option><option value="append">全部新增</option><option value="replace">完全取代</option></select>
+  </div>
+  <div id="importPreviewWrap" class="hidden"><p style="font-size:12px;margin-top:8px">預覽（前 5 筆）</p><div class="import-preview" id="importPreview"></div><p id="importCount" style="font-size:13px;margin-top:6px;color:#188038"></p></div>
+  <div class="modal-actions"><button type="button" class="secondary" onclick="closeImportModal()">取消</button><button type="button" class="success" id="importConfirmBtn" disabled onclick="doImportCSV()">確認匯入</button></div>
+</div></div>
+
+<div class="modal-overlay" id="layoutModal"><div class="modal">
+  <h2>⚙️ 倉庫格局設定</h2>
+  <p style="font-size:12px;color:#5f6368;margin-bottom:10px">區域名稱需與儲位前綴一致（如「極冷庫-右」對應 極冷庫-右2F-3）</p>
+  <div class="form-grid">
+    <div class="form-group"><label>區域名稱</label><input type="text" id="newZoneName" placeholder="例：極冷庫-右"></div>
+    <div class="form-group"><label>樓層數</label><input type="number" id="newFloors" min="1" max="20" value="4"></div>
+    <div class="form-group"><label>每層儲位數</label><input type="number" id="newSlotsPerFloor" min="1" max="50" value="22"></div>
+    <div class="form-group"><label>區域喜好色</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="color" id="newZoneColor" value="#a7f3d0" style="width:48px;height:36px;padding:2px;border-radius:8px;cursor:pointer">
+        <span style="font-size:12px;color:#5f6368">新建庫位預設底色</span>
+      </div>
+    </div>
+    <div class="form-group"><label>&nbsp;</label><button type="button" class="success" onclick="addZone()">＋ 新增區域</button></div>
+  </div>
+  <div style="margin-top:12px"><h3 style="font-size:13px;margin-bottom:6px">目前區域</h3><div id="zoneList"></div></div>
+  <div class="modal-actions"><button type="button" class="secondary" onclick="closeLayoutModal()">關閉</button><button type="button" class="success" onclick="saveLayoutAndClose()">套用並關閉</button></div>
+</div></div>
+
+<div class="modal-overlay" id="pendingModal"><div class="modal" style="max-width:640px">
+  <h2>📋 待審核申請</h2><div id="pendingList" style="font-size:13px"></div>
+  <div class="modal-actions"><button type="button" class="secondary" onclick="closePendingModal()">關閉</button></div>
+</div></div>
+
+<div class="modal-overlay" id="usersModal"><div class="modal">
+  <h2>👤 使用者管理</h2><div id="usersList" style="font-size:13px"></div>
+  <div class="modal-actions"><button type="button" class="secondary" onclick="closeUsersModal()">關閉</button></div>
+</div></div>
+
+<script>
+/**
+ * 智慧倉儲系統 · 模組化核心
+ * Modules: CryptoUtil, Storage, Auth, OfflineQueue, Cloud, Items, MapUI, App
+ * - 密碼 PBKDF2 雜湊（本機帳號）
+ * - Session 過期 + 登出清乾淨
+ * - Supabase Auth（雲端啟用時優先）
+ * - 離線佇列 + 重試
+ * - 合併同步仍保留
+ */
+(function (global) {
+  'use strict';
+
+  // ========== Storage keys ==========
+  const KEYS = {
+    items: 'sw_items_v3',
+    layout: 'sw_layout_v3',
+    users: 'sw_users_v4', // v4: hashed passwords
+    session: 'sw_session_v4',
+    pending: 'sw_pending_v3',
+    cloud: 'sw_cloud_cfg_v1',
+    offlineQ: 'sw_offline_queue_v1',
+    expiryOn: 'sw_expiry_check_on',
+    slotColors: 'sw_slot_colors_v1',
+    searchHeat: 'sw_search_heat_v1',
+    colorFavs: 'sw_color_favs_v1',
+    mapCols: 'sw_map_cols',
+    infoPanel: 'sw_info_panel',
+    mapTools: 'sw_map_tools_open',
+    lastSync: 'sw_last_cloud_sync'
+  };
+
+  const UNITS = ['個', '包', '片', 'KG', '箱', '袋', '瓶', '罐', '盒', '卷', '組', '打', '其他'];
+  const REPORT_TYPES = ['報廢', '異常', '移位', '出清', '散貨', '即期', '補貨', '正常'];
+  const PAGE_SIZE = 15;
+  const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 小時
+  const PBKDF2_ITERATIONS = 100000;
+
+  const DEFAULT_LAYOUT = {
+    zones: [
+      { id: 'z_jr', name: '極冷庫-右', floors: 4, slotsPerFloor: 22 },
+      { id: 'z_jl', name: '極冷庫-左', floors: 4, slotsPerFloor: 22 },
+      { id: 'z_cr', name: '冷藏庫-右', floors: 2, slotsPerFloor: 15 },
+      { id: 'z_cl', name: '冷藏庫-左', floors: 2, slotsPerFloor: 15 },
+      { id: 'z_cw', name: '常溫區', floors: 4, slotsPerFloor: 5 },
+      { id: 'z_wl', name: '左走道區', floors: 2, slotsPerFloor: 21 },
+      { id: 'z_wr', name: '右走道區', floors: 1, slotsPerFloor: 5 },
+      { id: 'z_dry', name: '乾式熟成-左', floors: 1, slotsPerFloor: 5 },
+      { id: 'z_ov', name: '超儲區', floors: 2, slotsPerFloor: 14 }
+    ]
+  };
+
+  const SUPABASE_SQL = `-- 智慧倉儲 Supabase schema（請在 SQL Editor 執行）
+-- 建議：正式環境請搭配 Supabase Auth，並將 RLS 改為依 auth.uid() 限制
+
+create table if not exists warehouse_items (
+  id text primary key,
+  sku text,
+  location text,
+  product_name text,
+  quantity numeric default 0,
+  unit text default '個',
+  bulk_qty numeric default 0,
+  bulk_unit text default '個',
+  status text default '正常',
+  batch_no text,
+  expiry_date text,
+  note text,
+  reports jsonb default '[]'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_wh_items_loc on warehouse_items(location);
+create index if not exists idx_wh_items_sku on warehouse_items(sku);
+
+create table if not exists warehouse_meta (
+  key text primary key,
+  value jsonb,
+  updated_at timestamptz default now()
+);
+
+create table if not exists warehouse_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  username text unique,
+  role text default 'operator' check (role in ('admin','operator')),
+  display_name text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table warehouse_items enable row level security;
+alter table warehouse_meta enable row level security;
+alter table warehouse_profiles enable row level security;
+
+-- 開發期：仍允許 anon（僅測試用）。正式請刪除下列 policy，改為：
+-- create policy "auth_items" on warehouse_items for all to authenticated using (true) with check (true);
+drop policy if exists "anon_all_items" on warehouse_items;
+drop policy if exists "anon_all_meta" on warehouse_meta;
+create policy "anon_all_items" on warehouse_items for all using (true) with check (true);
+create policy "anon_all_meta" on warehouse_meta for all using (true) with check (true);
+
+drop policy if exists "profiles_self" on warehouse_profiles;
+create policy "profiles_self" on warehouse_profiles for select using (auth.uid() = user_id);
+create policy "profiles_self_upd" on warehouse_profiles for update using (auth.uid() = user_id);
+`;
+
+  // ========== Utils ==========
+  function load(k, d) {
+    try {
+      const v = JSON.parse(localStorage.getItem(k));
+      return v != null ? v : d;
+    } catch {
+      return d;
+    }
+  }
+  function save(k, v) {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+    } catch (e) {
+      console.error('localStorage 寫入失敗', e);
+      if (typeof toast === 'function') toast('本機儲存失敗（空間可能不足）', 'err');
+    }
+  }
+  function removeKey(k) {
+    try {
+      localStorage.removeItem(k);
+    } catch (e) {}
+  }
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr),
+      t = new Date();
+    t.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    return Math.ceil((d - t) / 86400000);
+  }
+  function slotCode(zoneName, floor, slotNum) {
+    return String(zoneName || '') + floor + 'F-' + slotNum;
+  }
+  function normLoc(code) {
+    return String(code || '')
+      .trim()
+      .replace(/\s+/g, '');
+  }
+  function uid(prefix) {
+    return (prefix || 'id') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  }
+
+  function toast(msg, type, ms) {
+    type = type || 'info';
+    ms = ms == null ? 2800 : ms;
+    const wrap = document.getElementById('toastWrap');
+    if (!wrap) {
+      console.log(msg);
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    wrap.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => {
+      el.classList.remove('show');
+      setTimeout(() => el.remove(), 300);
+    }, ms);
+  }
+
+  // ========== CryptoUtil：PBKDF2 密碼雜湊 ==========
+  const CryptoUtil = {
+    async hashPassword(password, saltB64) {
+      const enc = new TextEncoder();
+      let salt;
+      if (saltB64) {
+        const bin = atob(saltB64);
+        salt = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) salt[i] = bin.charCodeAt(i);
+      } else {
+        salt = crypto.getRandomValues(new Uint8Array(16));
+      }
+      const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+      const bits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+        keyMaterial,
+        256
+      );
+      const hashArr = new Uint8Array(bits);
+      const toB64 = (arr) => btoa(String.fromCharCode(...arr));
+      return { hash: toB64(hashArr), salt: toB64(salt) };
+    },
+    async verifyPassword(password, hashB64, saltB64) {
+      if (!hashB64 || !saltB64) return false;
+      const { hash } = await this.hashPassword(password, saltB64);
+      return hash === hashB64;
+    },
+    /** 遷移舊版明文密碼使用者 */
+    async migrateUserIfNeeded(user, plainPassword) {
+      if (user.passwordHash && user.salt) return user;
+      if (user.password && plainPassword === user.password) {
+        const { hash, salt } = await this.hashPassword(plainPassword);
+        const next = Object.assign({}, user, {
+          passwordHash: hash,
+          salt,
+          password: undefined,
+          mustChangePassword: user.mustChangePassword
+        });
+        delete next.password;
+        return next;
+      }
+      return user;
+    }
+  };
+
+  // ========== OfflineQueue：離線佇列 + 重試 ==========
+  const OfflineQueue = {
+    _q: null,
+    load() {
+      this._q = load(KEYS.offlineQ, []);
+      if (!Array.isArray(this._q)) this._q = [];
+      return this._q;
+    },
+    persist() {
+      save(KEYS.offlineQ, this._q || []);
+    },
+    enqueue(op) {
+      this.load();
+      this._q.push(
+        Object.assign(
+          {
+            id: uid('oq'),
+            createdAt: new Date().toISOString(),
+            retries: 0
+          },
+          op
+        )
+      );
+      this.persist();
+      toast('已加入離線佇列，連線後自動重試', 'info');
+    },
+    async flush(cloudApi) {
+      this.load();
+      if (!this._q.length) return { ok: true, done: 0 };
+      if (!cloudApi || !cloudApi.isReady()) return { ok: false, done: 0 };
+      const remain = [];
+      let done = 0;
+      for (const job of this._q) {
+        try {
+          if (job.type === 'upsert_items') {
+            await cloudApi.upsertItemsRaw(job.rows);
+          } else if (job.type === 'delete_items') {
+            await cloudApi.deleteItemsRaw(job.ids);
+          } else if (job.type === 'save_meta') {
+            await cloudApi.saveMetaRaw(job.key, job.value);
+          } else {
+            remain.push(job);
+            continue;
+          }
+          done++;
+        } catch (e) {
+          job.retries = (job.retries || 0) + 1;
+          job.lastError = String(e.message || e);
+          if (job.retries < 8) remain.push(job);
+          else console.warn('offline job dropped', job);
+        }
+      }
+      this._q = remain;
+      this.persist();
+      if (done) toast('離線佇列已同步 ' + done + ' 筆', 'ok');
+      return { ok: remain.length === 0, done, remain: remain.length };
+    },
+    size() {
+      return this.load().length;
+    }
+  };
+
+  // ========== Cloud 模組 ==========
+  const Cloud = {
+    cfg: load(KEYS.cloud, { enabled: false, url: '', key: '' }),
+    client: null,
+    ready: false,
+    syncing: false,
+    realtimeChannel: null,
+
+    getCfg() {
+      return this.cfg || { enabled: false, url: '', key: '' };
+    },
+    initClient() {
+      this.ready = false;
+      this.client = null;
+      const cfg = this.getCfg();
+      if (!cfg.enabled || !cfg.url || !cfg.key) {
+        this.updateBadge();
+        return false;
+      }
+      if (typeof supabase === 'undefined' || !supabase.createClient) {
+        console.warn('Supabase SDK 未載入');
+        this.updateBadge();
+        return false;
+      }
+      try {
+        this.client = supabase.createClient(cfg.url.trim(), cfg.key.trim(), {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storageKey: 'sw_sb_auth'
+          }
+        });
+        this.ready = true;
+        this.updateBadge();
+        this.setupRealtime();
+        return true;
+      } catch (e) {
+        console.error(e);
+        this.ready = false;
+        this.updateBadge();
+        return false;
+      }
+    },
+    isReady() {
+      return !!(this.ready && this.client);
+    },
+    updateBadge() {
+      const el = document.getElementById('cloudBadge');
+      if (!el) return;
+      const cfg = this.getCfg();
+      if (cfg.enabled && this.ready) {
+        el.textContent = '☁ 已連線';
+        el.className = 'cloud-badge on';
+      } else if (cfg.enabled) {
+        el.textContent = '☁ 未連線';
+        el.className = 'cloud-badge off';
+      } else {
+        el.textContent = '☁ 本機';
+        el.className = 'cloud-badge off';
+      }
+      const qn = OfflineQueue.size();
+      if (qn > 0 && cfg.enabled) {
+        el.title = '離線佇列 ' + qn + ' 筆待同步';
+      }
+    },
+    itemToRow(i) {
+      return {
+        id: i.id,
+        sku: i.sku || '',
+        location: i.location || '',
+        product_name: i.productName || '',
+        quantity: Number(i.quantity) || 0,
+        unit: i.unit || '個',
+        bulk_qty: Number(i.bulkQty) || 0,
+        bulk_unit: i.bulkUnit || '個',
+        status: i.status || '正常',
+        batch_no: i.batchNo || '',
+        expiry_date: i.expiryDate || '',
+        note: i.note || '',
+        reports: i.reports || [],
+        created_at: i.createdAt || new Date().toISOString(),
+        updated_at: i.updatedAt || new Date().toISOString()
+      };
+    },
+    rowToItem(r) {
+      return {
+        id: r.id,
+        sku: r.sku || '',
+        location: r.location || '',
+        productName: r.product_name || '',
+        quantity: Number(r.quantity) || 0,
+        unit: r.unit || '個',
+        bulkQty: Number(r.bulk_qty) || 0,
+        bulkUnit: r.bulk_unit || '個',
+        status: r.status || '正常',
+        batchNo: r.batch_no || '',
+        expiryDate: r.expiry_date || '',
+        note: r.note || '',
+        reports: r.reports || [],
+        createdAt: r.created_at || null,
+        updatedAt: r.updated_at || null
+      };
+    },
+    async upsertItemsRaw(rows) {
+      if (!this.isReady()) throw new Error('雲端未連線');
+      const chunk = 100;
+      for (let i = 0; i < rows.length; i += chunk) {
+        const { error } = await this.client.from('warehouse_items').upsert(rows.slice(i, i + chunk), { onConflict: 'id' });
+        if (error) throw error;
+      }
+    },
+    async deleteItemsRaw(ids) {
+      if (!this.isReady()) throw new Error('雲端未連線');
+      const { error } = await this.client.from('warehouse_items').delete().in('id', ids);
+      if (error) throw error;
+    },
+    async saveMetaRaw(key, value) {
+      if (!this.isReady()) throw new Error('雲端未連線');
+      const { error } = await this.client
+        .from('warehouse_meta')
+        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+    },
+    async upsertItems(list) {
+      if (!list || !list.length) return { ok: true };
+      const rows = list.map((i) => this.itemToRow(i));
+      if (!this.isReady()) {
+        if (this.getCfg().enabled) {
+          OfflineQueue.enqueue({ type: 'upsert_items', rows });
+          toast('雲端未連線，已存本機並排入佇列', 'info');
+        }
+        return { ok: false, queued: true };
+      }
+      try {
+        await this.upsertItemsRaw(rows);
+        return { ok: true };
+      } catch (e) {
+        console.warn('cloud upsert', e);
+        OfflineQueue.enqueue({ type: 'upsert_items', rows });
+        toast('雲端寫入失敗，已排入離線佇列', 'err');
+        return { ok: false, error: e, queued: true };
+      }
+    },
+    async deleteItems(ids) {
+      if (!ids || !ids.length) return { ok: true };
+      if (!this.isReady()) {
+        if (this.getCfg().enabled) OfflineQueue.enqueue({ type: 'delete_items', ids });
+        return { ok: false, queued: true };
+      }
+      try {
+        await this.deleteItemsRaw(ids);
+        return { ok: true };
+      } catch (e) {
+        OfflineQueue.enqueue({ type: 'delete_items', ids });
+        toast('雲端刪除失敗，已排入佇列', 'err');
+        return { ok: false, error: e, queued: true };
+      }
+    },
+    async saveMeta(key, value) {
+      if (!this.isReady()) {
+        if (this.getCfg().enabled) OfflineQueue.enqueue({ type: 'save_meta', key, value });
+        return;
+      }
+      try {
+        await this.saveMetaRaw(key, value);
+      } catch (e) {
+        OfflineQueue.enqueue({ type: 'save_meta', key, value });
+        console.warn('cloud meta', e);
+      }
+    },
+    setupRealtime() {
+      if (this.realtimeChannel && this.client) {
+        try {
+          this.client.removeChannel(this.realtimeChannel);
+        } catch (e) {}
+        this.realtimeChannel = null;
+      }
+      if (!this.isReady() || !this.getCfg().enabled) return;
+      try {
+        this.realtimeChannel = this.client
+          .channel('wh_items_rt')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'warehouse_items' }, () => {
+            clearTimeout(window._rtPullTimer);
+            window._rtPullTimer = setTimeout(() => {
+              if (typeof App !== 'undefined' && App.mergeSync) App.mergeSync(true);
+            }, 600);
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') this.updateBadge();
+          });
+      } catch (e) {
+        console.warn('realtime', e);
+      }
+    },
+    async testConnection() {
+      if (!this.isReady()) throw new Error('無法連線');
+      const { error } = await this.client.from('warehouse_items').select('id', { count: 'exact', head: true });
+      if (error) throw error;
+    },
+    /** Supabase Auth helpers */
+    async authSignUp(email, password, meta) {
+      if (!this.isReady()) throw new Error('請先設定並啟用雲端');
+      const { data, error } = await this.client.auth.signUp({
+        email,
+        password,
+        options: { data: meta || {} }
+      });
+      if (error) throw error;
+      return data;
+    },
+    async authSignIn(email, password) {
+      if (!this.isReady()) throw new Error('請先設定並啟用雲端');
+      const { data, error } = await this.client.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data;
+    },
+    async authSignOut() {
+      if (this.client) {
+        try {
+          await this.client.auth.signOut();
+        } catch (e) {}
+      }
+    },
+    async authGetSession() {
+      if (!this.isReady()) return null;
+      const { data } = await this.client.auth.getSession();
+      return data && data.session ? data.session : null;
+    }
+  };
+
+  // ========== Auth 模組 ==========
+  const Auth = {
+    users: [],
+    session: null,
+
+    init() {
+      this.users = load(KEYS.users, null);
+      if (!this.users || !this.users.length) {
+        // 預設管理員：首次登入仍用 admin/admin123，但會強制改密並雜湊
+        this.users = [
+          {
+            username: 'admin',
+            password: 'admin123', // 僅遷移用，登入成功後移除
+            role: 'admin',
+            name: '系統管理員',
+            mustChangePassword: true,
+            createdAt: new Date().toISOString()
+          }
+        ];
+        this.persistUsers();
+      } else {
+        // 標記仍有明文的舊帳號需改密／遷移
+        this.users = this.users.map((u) => {
+          if (u.password && !u.passwordHash) {
+            return Object.assign({}, u, {
+              mustChangePassword: u.mustChangePassword != null ? u.mustChangePassword : u.username === 'admin'
+            });
+          }
+          return u;
+        });
+        this.persistUsers();
+      }
+      this.session = load(KEYS.session, null);
+      if (this.session && this.isSessionExpired(this.session)) {
+        this.clearSession();
+      }
+    },
+    persistUsers() {
+      // 永不把明文 password 寫回（遷移後）
+      const safe = this.users.map((u) => {
+        const o = Object.assign({}, u);
+        if (o.passwordHash) delete o.password;
+        return o;
+      });
+      save(KEYS.users, safe);
+      this.users = safe;
+      // 雲端只同步不含密碼的公開資訊
+      const publicUsers = safe.map((u) => ({
+        username: u.username,
+        role: u.role,
+        name: u.name || u.username,
+        mustChangePassword: !!u.mustChangePassword,
+        // 雜湊可同步以便多裝置本機登入（仍需保護 RLS）
+        passwordHash: u.passwordHash || null,
+        salt: u.salt || null,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt
+      }));
+      Cloud.saveMeta('users', publicUsers);
+    },
+    isSessionExpired(s) {
+      if (!s || !s.exp) return true;
+      return Date.now() > Number(s.exp);
+    },
+    createSession(user, extra) {
+      const s = Object.assign(
+        {
+          username: user.username,
+          role: user.role,
+          name: user.name || user.username,
+          exp: Date.now() + SESSION_TTL_MS,
+          issuedAt: Date.now(),
+          authMode: 'local'
+        },
+        extra || {}
+      );
+      this.session = s;
+      save(KEYS.session, s);
+      return s;
+    },
+    clearSession() {
+      this.session = null;
+      removeKey(KEYS.session);
+      // 清掉可能殘留的舊版 session
+      removeKey('sw_session_v3');
+    },
+    async logout() {
+      this.clearSession();
+      await Cloud.authSignOut();
+      // 登出不刪庫存資料，只清 session／暫存 UI 狀態
+      toast('已登出', 'info');
+    },
+    role() {
+      return (this.session && this.session.role) || 'guest';
+    },
+    isAdmin() {
+      return this.role() === 'admin';
+    },
+    isOperator() {
+      return this.role() === 'operator';
+    },
+    isGuest() {
+      return this.role() === 'guest';
+    },
+    canWrite() {
+      return this.isAdmin() || this.isOperator();
+    },
+    canDirectWrite() {
+      return this.isAdmin();
+    },
+    hasAdminUser() {
+      return this.users.some((x) => x.role === 'admin');
+    },
+    async loginLocal(username, password) {
+      const u = username.trim();
+      let user = this.users.find((x) => x.username === u);
+      if (!user) return { ok: false, error: '帳號或密碼錯誤' };
+
+      // 舊明文遷移
+      if (user.password && !user.passwordHash) {
+        if (user.password !== password) return { ok: false, error: '帳號或密碼錯誤' };
+        const { hash, salt } = await CryptoUtil.hashPassword(password);
+        const idx = this.users.findIndex((x) => x.username === u);
+        this.users[idx] = Object.assign({}, user, {
+          passwordHash: hash,
+          salt,
+          mustChangePassword: user.mustChangePassword || (u === 'admin' && password === 'admin123')
+        });
+        delete this.users[idx].password;
+        this.persistUsers();
+        user = this.users[idx];
+      } else {
+        const ok = await CryptoUtil.verifyPassword(password, user.passwordHash, user.salt);
+        if (!ok) return { ok: false, error: '帳號或密碼錯誤' };
+      }
+
+      if (user.mustChangePassword || (user.username === 'admin' && !user.passwordHash)) {
+        return { ok: true, forceChange: true, user };
+      }
+      this.createSession(user, { authMode: 'local' });
+      return { ok: true, user };
+    },
+    async loginWithSupabase(email, password) {
+      const data = await Cloud.authSignIn(email, password);
+      const sbUser = data.user;
+      const meta = (sbUser && sbUser.user_metadata) || {};
+      const role = meta.role === 'admin' ? 'admin' : 'operator';
+      const username = meta.username || (sbUser.email || '').split('@')[0] || 'user';
+      this.createSession(
+        { username, role, name: meta.display_name || username },
+        { authMode: 'supabase', email: sbUser.email, userId: sbUser.id }
+      );
+      return { ok: true };
+    },
+    async registerLocal(username, password, role) {
+      const u = username.trim();
+      if (u.length < 3) return { ok: false, error: '帳號至少 3 字元' };
+      if (password.length < 6) return { ok: false, error: '密碼至少 6 字元' };
+      if (this.users.find((x) => x.username === u)) return { ok: false, error: '帳號已存在' };
+      if (role === 'admin' && this.hasAdminUser()) return { ok: false, error: '系統已有管理員，管理身分已鎖定' };
+      const { hash, salt } = await CryptoUtil.hashPassword(password);
+      this.users.push({
+        username: u,
+        passwordHash: hash,
+        salt,
+        role: role === 'admin' ? 'admin' : 'operator',
+        name: u,
+        mustChangePassword: false,
+        createdAt: new Date().toISOString()
+      });
+      this.persistUsers();
+      return { ok: true };
+    },
+    async forceChangePassword(oldUser, newUsername, newPassword) {
+      const nu = newUsername.trim();
+      if (nu.length < 3) return { ok: false, error: '新帳號至少 3 字元' };
+      if (nu.toLowerCase() === 'admin') return { ok: false, error: '新帳號不可使用 admin' };
+      if (newPassword.length < 6) return { ok: false, error: '新密碼至少 6 字元' };
+      if (newPassword === 'admin123') return { ok: false, error: '新密碼不可與預設密碼相同' };
+      if (this.users.find((x) => x.username === nu && x.username !== oldUser.username)) {
+        return { ok: false, error: '此帳號已被使用' };
+      }
+      const { hash, salt } = await CryptoUtil.hashPassword(newPassword);
+      const idx = this.users.findIndex((x) => x.username === oldUser.username);
+      if (idx === -1) return { ok: false, error: '找不到使用者' };
+      this.users[idx] = {
+        username: nu,
+        passwordHash: hash,
+        salt,
+        role: 'admin',
+        name: nu,
+        mustChangePassword: false,
+        updatedAt: new Date().toISOString(),
+        createdAt: this.users[idx].createdAt || new Date().toISOString()
+      };
+      this.persistUsers();
+      this.createSession(this.users[idx], { authMode: 'local' });
+      return { ok: true };
+    },
+    /** 從雲端合併使用者（含雜湊，不含明文） */
+    mergeUsersFromCloud(cloudUsers) {
+      if (!Array.isArray(cloudUsers)) return;
+      const umap = new Map();
+      this.users.forEach((u) => umap.set(u.username, u));
+      cloudUsers.forEach((u) => {
+        if (!u || !u.username) return;
+        const prev = umap.get(u.username);
+        if (!prev) {
+          umap.set(u.username, u);
+          return;
+        }
+        // 有雜湊的優先；保留本機較新 updatedAt
+        const t1 = new Date(prev.updatedAt || prev.createdAt || 0).getTime() || 0;
+        const t2 = new Date(u.updatedAt || u.createdAt || 0).getTime() || 0;
+        if (t2 >= t1 && u.passwordHash) umap.set(u.username, Object.assign({}, prev, u, { password: undefined }));
+        else if (!prev.passwordHash && u.passwordHash) umap.set(u.username, Object.assign({}, prev, u));
+      });
+      this.users = Array.from(umap.values()).map((u) => {
+        const o = Object.assign({}, u);
+        delete o.password;
+        return o;
+      });
+      save(KEYS.users, this.users);
+    },
+    touchSession() {
+      if (!this.session) return;
+      if (this.isSessionExpired(this.session)) {
+        this.clearSession();
+        return false;
+      }
+      // 滑動過期：操作時延長
+      this.session.exp = Date.now() + SESSION_TTL_MS;
+      save(KEYS.session, this.session);
+      return true;
+    }
+  };
+
+  // ========== Items 模組（資料狀態） ==========
+  const Items = {
+    list: [],
+    layout: null,
+    pending: [],
+    selectedIds: new Set(),
+    sortKey: 'sku',
+    sortDir: 'asc',
+    currentPage: 1,
+    slotFilter: null,
+    statsFilter: null,
+    scrapFilter: false,
+    highlightId: null,
+    compareMode: false,
+    compareSelection: { a: null, b: null },
+    locationIndex: null, // Map location -> items[]
+
+    init() {
+      this.list = load(KEYS.items, []);
+      this.list = this.list.map((i) =>
+        Object.assign({}, i, {
+          unit: i.unit || '個',
+          status: i.status || '正常',
+          reports: i.reports || [],
+          bulkQty: i.bulkQty != null ? i.bulkQty : 0,
+          bulkUnit: i.bulkUnit || '個'
+        })
+      );
+      this.layout = load(KEYS.layout, null) || DEFAULT_LAYOUT;
+      if (!this.layout.zones || !this.layout.zones.length) {
+        this.layout = DEFAULT_LAYOUT;
+        save(KEYS.layout, this.layout);
+      }
+      this.pending = load(KEYS.pending, []);
+      this.rebuildIndex();
+    },
+    rebuildIndex() {
+      const m = new Map();
+      this.list.forEach((i) => {
+        const c = normLoc(i.location);
+        if (!m.has(c)) m.set(c, []);
+        m.get(c).push(i);
+      });
+      this.locationIndex = m;
+    },
+    getInSlot(code) {
+      const c = normLoc(code);
+      if (this.locationIndex) return this.locationIndex.get(c) || [];
+      return this.list.filter((i) => normLoc(i.location) === c);
+    },
+    getSlotStatus(code) {
+      const list = this.getInSlot(code);
+      if (!list.length) return 'empty';
+      const totalQty = list.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+      if (list.some((i) => {
+        const d = daysUntil(i.expiryDate);
+        return d !== null && d <= 15;
+      }))
+        return 'expired';
+      if (totalQty <= 5) return 'low';
+      return 'occupied';
+    },
+    persist() {
+      save(KEYS.items, this.list);
+      this.rebuildIndex();
+    },
+    persistPending() {
+      save(KEYS.pending, this.pending);
+      Cloud.saveMeta('pending', this.pending);
+    },
+    persistLayout() {
+      save(KEYS.layout, this.layout);
+      Cloud.saveMeta('layout', this.layout);
+    },
+    mergeById(localList, cloudList) {
+      const map = new Map();
+      const put = (it) => {
+        if (!it || !it.id) return;
+        const prev = map.get(it.id);
+        if (!prev) {
+          map.set(it.id, it);
+          return;
+        }
+        const t1 = new Date(prev.updatedAt || prev.createdAt || 0).getTime() || 0;
+        const t2 = new Date(it.updatedAt || it.createdAt || 0).getTime() || 0;
+        map.set(it.id, t2 >= t1 ? it : prev);
+      };
+      (cloudList || []).forEach(put);
+      (localList || []).forEach(put);
+      return Array.from(map.values());
+    },
+    commit(opts) {
+      opts = opts || {};
+      this.persist();
+      if (opts.render !== false && typeof App !== 'undefined' && App.refreshUI) {
+        try {
+          App.refreshUI(opts);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      const tasks = [];
+      if (opts.upsert && opts.upsert.length) tasks.push(Cloud.upsertItems(opts.upsert));
+      if (opts.removeIds && opts.removeIds.length) tasks.push(Cloud.deleteItems(opts.removeIds));
+      if (tasks.length) {
+        Promise.all(tasks).then((results) => {
+          const allOk = results.every((r) => r && r.ok);
+          if (opts.toast) {
+            if (allOk && Cloud.isReady()) toast(opts.toast + (opts.toast.indexOf('雲') >= 0 ? '' : '（已同步雲端）'), 'ok');
+            else if (allOk) toast(opts.toast, 'ok');
+            else toast((opts.toast || '已存本機') + '（雲端未完成／已排佇列）', 'info');
+          }
+        });
+      } else if (opts.toast) {
+        toast(opts.toast, opts.toastType || 'ok');
+      }
+      Auth.touchSession();
+    },
+    submitPending(action, payload, summary) {
+      this.pending.push({
+        id: uid('p'),
+        action,
+        payload,
+        summary,
+        by: Auth.session.username,
+        at: new Date().toLocaleString('zh-TW')
+      });
+      this.persistPending();
+      toast('已送出申請，待管理員審核後才會入庫／同步雲端', 'info', 3500);
+      if (typeof App !== 'undefined' && App.updatePendingBadge) App.updatePendingBadge();
+    }
+  };
+
+  // ========== MapUI（圖譜狀態） ==========
+  const MapUI = {
+    currentZoneId: '',
+    currentFloor: 1,
+    selectedSlotCode: null,
+    jumpMode: false,
+    mapColsPref: localStorage.getItem(KEYS.mapCols) || 'auto',
+    slotCarouselIndex: {},
+    slotCarouselTimer: null,
+    slotColors: load(KEYS.slotColors, {}),
+
+    init() {
+      this.currentZoneId = (Items.layout.zones[0] && Items.layout.zones[0].id) || '';
+      this.currentFloor = 1;
+    }
+  };
+
+  // ========== App：UI 與流程協調 ==========
+  const App = {
+    pendingForceUser: null,
+    selectedReportType: null,
+    pendingImportRows: [],
+    expiryCheckOn: load(KEYS.expiryOn, true),
+    currentExpiryRange: 30,
+    searchHeat: load(KEYS.searchHeat, {}),
+    colorFavorites: load(KEYS.colorFavs, ['#ef4444', '#22c55e', '#3b82f6', '#f59e0b', '#a855f7']),
+    batchMode: false,
+
+    boot() {
+      Auth.init();
+      Items.init();
+      MapUI.init();
+      Cloud.cfg = load(KEYS.cloud, { enabled: false, url: '', key: '' });
+      Cloud.initClient();
+      OfflineQueue.load();
+      this.bindGlobal();
+      if (Auth.session && Auth.session.username && !Auth.isSessionExpired(Auth.session)) {
+        const su = Auth.users.find((x) => x.username === Auth.session.username);
+        if (su && su.mustChangePassword) {
+          Auth.clearSession();
+          this.showLogin();
+          this.preloadUsers();
+        } else {
+          this.enterApp();
+        }
+      } else {
+        Auth.clearSession();
+        this.showLogin();
+        this.preloadUsers();
+      }
+      // 定期檢查 session
+      setInterval(() => {
+        if (Auth.session && Auth.isSessionExpired(Auth.session)) {
+          Auth.clearSession();
+          toast('登入已過期，請重新登入', 'info');
+          this.showLogin();
+        }
+      }, 60000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && Cloud.getCfg().enabled) {
+          const app = document.getElementById('app');
+          if (app && !app.classList.contains('hidden')) {
+            OfflineQueue.flush(Cloud);
+            this.mergeSync(true);
+          } else {
+            this.preloadUsers();
+          }
+        }
+      });
+    },
+    showLogin() {
+      document.getElementById('app').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('forceChangeModal').classList.remove('show');
+    },
+    bindGlobal() {
+      // 暴露給 HTML onclick
+      global.toast = toast;
+      global.switchLoginTab = (t) => this.switchLoginTab(t);
+      global.onRegRoleChange = () => this.onRegRoleChange();
+      global.doLogin = () => this.doLogin();
+      global.doRegister = () => this.doRegister();
+      global.enterAsGuest = () => this.enterAsGuest();
+      global.submitForceChange = () => this.submitForceChange();
+      global.doLogout = () => this.doLogout();
+      global.openCloudModal = () => this.openCloudModal();
+      global.closeCloudModal = () => document.getElementById('cloudModal').classList.remove('show');
+      global.saveCloudConfig = () => this.saveCloudConfig();
+      global.testCloudConnection = () => this.testCloudConnection();
+      global.copySupabaseSQL = () => this.copySupabaseSQL();
+      global.mergeSyncWithCloud = (s) => this.mergeSync(!!s);
+      global.syncWithCloud = () => this.syncWithCloud();
+      global.openPendingModal = () => this.openPendingModal();
+      global.closePendingModal = () => document.getElementById('pendingModal').classList.remove('show');
+      global.approvePending = (id) => this.approvePending(id);
+      global.rejectPending = (id) => this.rejectPending(id);
+      global.openUsersModal = () => this.openUsersModal();
+      global.closeUsersModal = () => document.getElementById('usersModal').classList.remove('show');
+      global.setUserRole = (u, r) => this.setUserRole(u, r);
+      global.deleteUser = (u) => this.deleteUser(u);
+      global.onSearch = () => this.onSearch();
+      global.openModal = (id) => this.openModal(id);
+      global.closeModal = () => document.getElementById('modal').classList.remove('show');
+      global.saveItem = (e) => this.saveItem(e);
+      global.editItem = (id) => this.openModal(id);
+      global.deleteItem = (id) => this.deleteItem(id);
+      global.adjustQty = (id, d) => this.adjustQty(id, d);
+      global.openReportModal = (id) => this.openReportModal(id);
+      global.closeReportModal = () => document.getElementById('reportModal').classList.remove('show');
+      global.selectReportType = (btn) => this.selectReportType(btn);
+      global.submitReport = () => this.submitReport();
+      global.openImportModal = () => this.openImportModal();
+      global.closeImportModal = () => document.getElementById('importModal').classList.remove('show');
+      global.previewCSV = (e) => this.previewCSV(e);
+      global.doImportCSV = () => this.doImportCSV();
+      global.exportCSV = () => this.exportCSV();
+      global.exportExcel = () => this.exportExcel();
+      global.exportSelectedExcel = () => this.exportSelectedExcel();
+      global.toggleBatchMode = () => this.toggleBatchMode();
+      global.toggleSelectAll = (el) => this.toggleSelectAll(el);
+      global.toggleRowSelect = (id, c) => this.toggleRowSelect(id, c);
+      global.clearBatchSelection = () => this.clearBatchSelection();
+      global.batchMove = () => this.batchMove();
+      global.batchDelete = () => this.batchDelete();
+      global.openLayoutModal = () => this.openLayoutModal();
+      global.closeLayoutModal = () => document.getElementById('layoutModal').classList.remove('show');
+      global.addZone = () => this.addZone();
+      global.removeZone = (id) => this.removeZone(id);
+      global.saveLayoutAndClose = () => this.saveLayoutAndClose();
+      global.clearAllData = () => this.clearAllData();
+      global.toggleCompareMode = () => this.toggleCompareMode();
+      global.selectForCompare = (id) => this.selectForCompare(id);
+      global.switchZone = (id) => this.switchZone(id);
+      global.onFloorChange = () => this.onFloorChange();
+      global.onMapColsChange = () => this.onMapColsChange();
+      global.toggleJumpMode = () => this.toggleJumpMode();
+      global.onSlotClick = (e, code) => this.onSlotClick(e, code);
+      global.hideSlotDetail = () => this.hideSlotDetail();
+      global.filterListBySlot = (c) => this.filterListBySlot(c);
+      global.clearSlotFilter = () => this.clearSlotFilter();
+      global.focusSlot = (c) => this.focusSlot(c);
+      global.highlightRow = (id) => this.highlightRow(id);
+      global.openModalForSlot = (c) => {
+        this.openModal();
+        document.getElementById('locationManual').value = c;
+      };
+      global.sortTable = (k) => this.sortTable(k);
+      global.goPage = (p) => this.goPage(p);
+      global.updateBulkQty = (id, v) => this.updateBulkQty(id, v);
+      global.updateBulkUnit = (id, v) => this.updateBulkUnit(id, v);
+      global.updateLocationOptions = () => this.updateLocationOptions();
+      global.toggleScrapFilter = () => this.toggleScrapFilter();
+      global.filterByStats = (t) => this.filterByStats(t);
+      global.toggleMapTools = () => this.toggleMapTools();
+      global.toggleInfoPanel = () => this.toggleInfoPanel();
+      global.openMoreTools = () => this.openMoreTools();
+      global.closeMoreTools = () => {
+        const el = document.getElementById('moreToolsModal');
+        if (el) el.classList.remove('show');
+      };
+      global.toggleInvCard = (btn) => {
+        const card = btn.closest('.inv-card');
+        if (!card) return;
+        card.classList.toggle('collapsed');
+        btn.textContent = card.classList.contains('collapsed') ? '展開' : '收合';
+      };
+      global.toggleExpiryCheck = () => this.toggleExpiryCheck();
+      global.setExpiryRange = (r) => this.setExpiryRange(r);
+      global.openSlotColorPicker = (c) => this.openSlotColorPicker(c);
+      global.showHeatAnalysis = () => this.showHeatAnalysis();
+      global.closeBatchMoveModal = () => {
+        const el = document.getElementById('batchMoveModal');
+        if (el) el.classList.remove('show');
+      };
+      global.updateBatchMoveSlots = () => this.updateBatchMoveSlots();
+      global.confirmBatchMove = () => this.confirmBatchMove();
+      global.pickPresetColor = (c) => this.pickPresetColor(c);
+      global.applyCustomColor = () => this.applyCustomColor();
+      global.clearSlotColor = () => this.clearSlotColor();
+      global.closeColorPick = () => this.closeColorPick();
+      global.saveToFavorite = () => this.saveToFavorite();
+      global.clearFavorite = (i) => this.clearFavorite(i);
+
+      ['modal', 'reportModal', 'importModal', 'layoutModal', 'pendingModal', 'usersModal', 'moreToolsModal', 'cloudModal'].forEach(
+        (id) => {
+          const el = document.getElementById(id);
+          if (el)
+            el.addEventListener('click', (e) => {
+              if (e.target.id === id) e.target.classList.remove('show');
+            });
+        }
+      );
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.slot') && !e.target.closest('.slot-detail')) this.hideSlotDetail();
+      });
+      this.bindTouchGestures();
+    },
+
+    async preloadUsers() {
+      const cfg = Cloud.getCfg();
+      if (!cfg.enabled || !cfg.url || !cfg.key) return;
+      if (!Cloud.initClient()) return;
+      try {
+        const { data: metas, error } = await Cloud.client.from('warehouse_meta').select('*').eq('key', 'users');
+        if (error) throw error;
+        if (metas && metas[0] && metas[0].value) {
+          Auth.mergeUsersFromCloud(metas[0].value);
+        }
+      } catch (e) {
+        console.warn('preload users', e);
+      }
+    },
+
+    async mergeSync(silent) {
+      if (!Cloud.initClient() || !Cloud.client) {
+        if (!silent) toast('請先啟用並設定 Supabase', 'err');
+        return false;
+      }
+      if (Cloud.syncing) return false;
+      Cloud.syncing = true;
+      try {
+        if (!silent) toast('正在合併同步多裝置資料…', 'info', 5000);
+        await OfflineQueue.flush(Cloud);
+        const localSnap = Items.list.slice();
+        const { data: rows, error } = await Cloud.client.from('warehouse_items').select('*');
+        if (error) throw error;
+        const { data: metas, error: me } = await Cloud.client.from('warehouse_meta').select('*');
+        if (me) throw me;
+        const cloudItems = (rows || []).map((r) => Cloud.rowToItem(r));
+        Items.list = Items.mergeById(localSnap, cloudItems);
+        Items.persist();
+        if (metas && metas.length) {
+          metas.forEach((m) => {
+            if (m.key === 'layout' && m.value) {
+              Items.layout = m.value;
+              save(KEYS.layout, Items.layout);
+            }
+            if (m.key === 'users' && m.value) Auth.mergeUsersFromCloud(m.value);
+            if (m.key === 'pending' && m.value) {
+              const cloudP = Array.isArray(m.value) ? m.value : [];
+              const pmap = new Map();
+              Items.pending.forEach((p) => pmap.set(p.id, p));
+              cloudP.forEach((p) => {
+                if (p && p.id) pmap.set(p.id, p);
+              });
+              Items.pending = Array.from(pmap.values());
+              save(KEYS.pending, Items.pending);
+            }
+          });
+        }
+        const metaRows = [
+          { key: 'layout', value: Items.layout, updated_at: new Date().toISOString() },
+          {
+            key: 'users',
+            value: Auth.users.map((u) => ({
+              username: u.username,
+              role: u.role,
+              name: u.name,
+              mustChangePassword: !!u.mustChangePassword,
+              passwordHash: u.passwordHash || null,
+              salt: u.salt || null,
+              createdAt: u.createdAt,
+              updatedAt: u.updatedAt
+            })),
+            updated_at: new Date().toISOString()
+          },
+          { key: 'pending', value: Items.pending, updated_at: new Date().toISOString() }
+        ];
+        const { error: me2 } = await Cloud.client.from('warehouse_meta').upsert(metaRows, { onConflict: 'key' });
+        if (me2) throw me2;
+        const outRows = Items.list.map((i) => Cloud.itemToRow(i));
+        const chunk = 200;
+        for (let i = 0; i < outRows.length; i += chunk) {
+          const { error: ue } = await Cloud.client.from('warehouse_items').upsert(outRows.slice(i, i + chunk), { onConflict: 'id' });
+          if (ue) throw ue;
+        }
+        this.refreshUI({});
+        localStorage.setItem(KEYS.lastSync, new Date().toISOString());
+        if (!silent) toast('合併同步完成（共 ' + Items.list.length + ' 筆）', 'ok');
+        const msgEl = document.getElementById('cloudStatusMsg');
+        if (msgEl) msgEl.textContent = '合併同步完成 ' + new Date().toLocaleString('zh-TW') + '（' + Items.list.length + ' 筆）';
+        return true;
+      } catch (e) {
+        console.error(e);
+        if (!silent) toast('同步失敗：' + (e.message || e), 'err');
+        return false;
+      } finally {
+        Cloud.syncing = false;
+        Cloud.updateBadge();
+      }
+    },
+
+    async syncWithCloud() {
+      if (!Cloud.getCfg().enabled) {
+        this.openCloudModal();
+        toast('請先啟用雲端，多裝置才能看到相同資料', 'info');
+        return;
+      }
+      await this.mergeSync(false);
+    },
+
+    switchLoginTab(t) {
+      document.getElementById('tabLogin').classList.toggle('active', t === 'login');
+      document.getElementById('tabReg').classList.toggle('active', t === 'reg');
+      document.getElementById('loginForm').classList.toggle('hidden', t !== 'login');
+      document.getElementById('regForm').classList.toggle('hidden', t !== 'reg');
+      if (t === 'reg') this.updateRegRoleLock();
+    },
+    updateRegRoleLock() {
+      const adminOpt = document.getElementById('regRoleAdmin');
+      const hint = document.getElementById('regAdminLockHint');
+      const sel = document.getElementById('regRole');
+      const locked = Auth.hasAdminUser();
+      if (adminOpt) {
+        adminOpt.disabled = locked;
+        adminOpt.textContent = locked ? '系統管理員（已鎖定）' : '系統管理員（僅限 1 人）';
+      }
+      if (hint) hint.style.display = locked ? 'block' : 'none';
+      if (locked && sel && sel.value === 'admin') sel.value = 'operator';
+    },
+    onRegRoleChange() {
+      if (document.getElementById('regRole').value === 'admin' && Auth.hasAdminUser()) {
+        alert('系統已有管理員，無法再註冊管理身分');
+        document.getElementById('regRole').value = 'operator';
+      }
+    },
+    async doLogin() {
+      const u = document.getElementById('loginUser').value.trim();
+      const p = document.getElementById('loginPass').value;
+      if (Cloud.getCfg().enabled) {
+        try {
+          await this.preloadUsers();
+        } catch (e) {}
+      }
+      // 若輸入看起來像 email 且雲端已啟用，嘗試 Supabase Auth
+      if (Cloud.getCfg().enabled && Cloud.isReady() && u.includes('@')) {
+        try {
+          await Auth.loginWithSupabase(u, p);
+          this.enterApp();
+          return;
+        } catch (e) {
+          // fallback 本機
+          console.warn('supabase auth fail, try local', e);
+        }
+      }
+      const res = await Auth.loginLocal(u, p);
+      if (!res.ok) {
+        alert(res.error || '登入失敗');
+        return;
+      }
+      if (res.forceChange) {
+        this.pendingForceUser = res.user;
+        document.getElementById('forceNewUser').value = '';
+        document.getElementById('forceNewPass').value = '';
+        document.getElementById('forceNewPass2').value = '';
+        document.getElementById('forceChangeModal').classList.add('show');
+        return;
+      }
+      this.enterApp();
+    },
+    async submitForceChange() {
+      if (!this.pendingForceUser) return;
+      const nu = document.getElementById('forceNewUser').value.trim();
+      const np = document.getElementById('forceNewPass').value;
+      const np2 = document.getElementById('forceNewPass2').value;
+      if (np !== np2) {
+        alert('兩次密碼不一致');
+        return;
+      }
+      const res = await Auth.forceChangePassword(this.pendingForceUser, nu, np);
+      if (!res.ok) {
+        alert(res.error);
+        return;
+      }
+      this.pendingForceUser = null;
+      document.getElementById('forceChangeModal').classList.remove('show');
+      alert('帳密已更新（已雜湊儲存），請妥善保存');
+      this.enterApp();
+    },
+    enterAsGuest() {
+      Auth.createSession({ username: 'guest', role: 'guest', name: '訪客' }, { authMode: 'guest' });
+      this.enterApp();
+    },
+    async doRegister() {
+      const u = document.getElementById('regUser').value.trim();
+      const p = document.getElementById('regPass').value;
+      let r = document.getElementById('regRole').value;
+      const res = await Auth.registerLocal(u, p, r);
+      if (!res.ok) {
+        alert(res.error);
+        this.updateRegRoleLock();
+        return;
+      }
+      // 若雲端啟用且帳號像 email，可同步註冊 Supabase Auth
+      if (Cloud.getCfg().enabled && Cloud.isReady() && u.includes('@')) {
+        try {
+          await Cloud.authSignUp(u, p, { username: u, role: r === 'admin' ? 'admin' : 'operator', display_name: u });
+          toast('已同步註冊 Supabase Auth', 'ok');
+        } catch (e) {
+          console.warn('sb signup', e);
+        }
+      }
+      alert(r === 'admin' ? '管理員註冊成功！請登入。' : '註冊成功，請登入');
+      this.updateRegRoleLock();
+      this.switchLoginTab('login');
+      document.getElementById('loginUser').value = u;
+    },
+    async doLogout() {
+      await Auth.logout();
+      this.showLogin();
+      this.preloadUsers();
+    },
+    enterApp() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      this.applyPermissions();
+      MapUI.currentZoneId = (Items.layout.zones[0] && Items.layout.zones[0].id) || '';
+      MapUI.currentFloor = 1;
+      Items.currentPage = 1;
+      this.renderZoneTabs();
+      this.updateFloorSelect();
+      this.renderMap();
+      this.renderTable();
+      this.updatePendingBadge();
+      this.initExtraFeatures();
+      Cloud.updateBadge();
+      OfflineQueue.flush(Cloud).then(() => {
+        if (Cloud.getCfg().enabled) this.mergeSync(true);
+      });
+      const panel = document.getElementById('infoPanel');
+      const arrow = document.getElementById('infoToggleArrow');
+      const saved = localStorage.getItem(KEYS.infoPanel);
+      const isMob = window.innerWidth <= 768;
+      if (panel) {
+        if (saved === '0' || (saved === null && isMob)) {
+          panel.classList.add('collapsed');
+          if (arrow) arrow.textContent = '▶';
+        } else {
+          panel.classList.remove('collapsed');
+          if (arrow) arrow.textContent = '▼';
+        }
+      }
+    },
+    applyPermissions() {
+      const r = Auth.role();
+      document.getElementById('userLabel').textContent = (Auth.session && (Auth.session.name || Auth.session.username)) || '';
+      const badge = document.getElementById('roleBadge');
+      badge.className = 'role-badge role-' + r;
+      badge.textContent = r === 'admin' ? '管理員' : r === 'operator' ? '操作員' : '訪客（僅檢視）';
+      const write = Auth.canWrite(),
+        admin = Auth.isAdmin();
+      ['btnAdd', 'btnImport', 'btnLayout', 'btnClear', 'btnBatch'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = write ? '' : 'none';
+      });
+      ['btnExport', 'btnExportXls'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = write || admin ? '' : 'none';
+      });
+      document.getElementById('btnPending').style.display = admin ? '' : 'none';
+      document.getElementById('btnUsers').style.display = admin ? '' : 'none';
+    },
+    refreshUI() {
+      Items.currentPage = 1;
+      this.renderZoneTabs();
+      this.updateFloorSelect();
+      this.renderTable();
+      this.refreshMapAfterDataChange();
+      this.updatePendingBadge();
+      Cloud.updateBadge();
+    },
+    refreshMapAfterDataChange() {
+      try {
+        MapUI.slotCarouselIndex = {};
+      } catch (e) {}
+      if (MapUI.slotCarouselTimer) {
+        clearInterval(MapUI.slotCarouselTimer);
+        MapUI.slotCarouselTimer = null;
+      }
+      try {
+        this.hideSlotDetail();
+      } catch (e) {}
+      const grid = document.getElementById('mapGrid');
+      if (grid) grid.innerHTML = '';
+      this.renderZoneTabs();
+      this.updateFloorSelect();
+      this.renderMap();
+      this.renderStats();
+      this.updateMarquee();
+    },
+
+    // --- Cloud modal ---
+    openCloudModal() {
+      const cfg = Cloud.getCfg();
+      document.getElementById('cloudEnabled').checked = !!cfg.enabled;
+      document.getElementById('cloudUrl').value = cfg.url || '';
+      document.getElementById('cloudKey').value = cfg.key || '';
+      document.getElementById('supabaseSqlBox').textContent = SUPABASE_SQL;
+      document.getElementById('cloudStatusMsg').textContent = Cloud.ready
+        ? '狀態：已連線' + (OfflineQueue.size() ? '（佇列 ' + OfflineQueue.size() + '）' : '')
+        : '狀態：未連線或未啟用';
+      document.getElementById('cloudModal').classList.add('show');
+    },
+    saveCloudConfig() {
+      Cloud.cfg = {
+        enabled: document.getElementById('cloudEnabled').checked,
+        url: document.getElementById('cloudUrl').value.trim(),
+        key: document.getElementById('cloudKey').value.trim()
+      };
+      save(KEYS.cloud, Cloud.cfg);
+      const ok = Cloud.initClient();
+      document.getElementById('cloudStatusMsg').textContent = ok
+        ? '已儲存並連線成功'
+        : '已儲存（尚未連線，請檢查 URL／Key 或是否啟用）';
+      toast(ok ? '雲端設定已儲存並連線' : '雲端設定已儲存', 'info');
+      if (ok) OfflineQueue.flush(Cloud);
+    },
+    async testCloudConnection() {
+      this.saveCloudConfig();
+      try {
+        await Cloud.testConnection();
+        document.getElementById('cloudStatusMsg').textContent = '連線成功，資料表可讀取';
+        toast('Supabase 連線成功', 'ok');
+      } catch (e) {
+        document.getElementById('cloudStatusMsg').textContent = '連線失敗：' + (e.message || e);
+        toast('連線失敗：' + (e.message || '請確認已執行 SQL'), 'err');
+      }
+    },
+    copySupabaseSQL() {
+      const t = SUPABASE_SQL;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).then(() => toast('SQL 已複製', 'ok')).catch(() => this.fallbackCopy(t));
+      } else this.fallbackCopy(t);
+    },
+    fallbackCopy(t) {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        toast('SQL 已複製', 'ok');
+      } catch (e) {
+        toast('複製失敗，請手動選取', 'err');
+      }
+      document.body.removeChild(ta);
+    },
+
+    // --- Pending / Users ---
+    updatePendingBadge() {
+      document.getElementById('pendingCount').textContent = Items.pending.length;
+      document.getElementById('btnPending').style.display = Auth.isAdmin() ? '' : 'none';
+    },
+    openPendingModal() {
+      const el = document.getElementById('pendingList');
+      if (!Items.pending.length) el.innerHTML = '<p class="empty">目前沒有待審核項目</p>';
+      else
+        el.innerHTML = Items.pending
+          .map(
+            (p) =>
+              `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px"><div><strong>${escapeHtml(
+                p.action
+              )}</strong> · ${escapeHtml(p.summary)}</div><div style="color:#5f6368;font-size:12px;margin:4px 0">申請人：${escapeHtml(
+                p.by
+              )}　${escapeHtml(p.at)}</div><div style="display:flex;gap:6px"><button class="success" style="padding:4px 10px;font-size:12px" onclick="approvePending('${escapeHtml(
+                p.id
+              )}')">核准</button><button class="danger" style="padding:4px 10px;font-size:12px" onclick="rejectPending('${escapeHtml(
+                p.id
+              )}')">駁回</button></div></div>`
+          )
+          .join('');
+      document.getElementById('pendingModal').classList.add('show');
+    },
+    rejectPending(id) {
+      Items.pending = Items.pending.filter((p) => p.id !== id);
+      Items.persistPending();
+      this.updatePendingBadge();
+      this.openPendingModal();
+    },
+    approvePending(id) {
+      const p = Items.pending.find((x) => x.id === id);
+      if (!p) return;
+      let upsert = [],
+        removeIds = [];
+      try {
+        if (p.action === 'add') {
+          const row = Object.assign({}, p.payload, {
+            id: p.payload.id || uid('id'),
+            reports: p.payload.reports || [],
+            status: p.payload.status || '正常'
+          });
+          Items.list.push(row);
+          upsert = [row];
+        } else if (p.action === 'edit') {
+          const idx = Items.list.findIndex((i) => i.id === p.payload.id);
+          if (idx !== -1) {
+            Items.list[idx] = Object.assign({}, Items.list[idx], p.payload, { updatedAt: new Date().toISOString() });
+            upsert = [Items.list[idx]];
+          }
+        } else if (p.action === 'delete') {
+          removeIds = [p.payload.id];
+          Items.list = Items.list.filter((i) => i.id !== p.payload.id);
+        } else if (p.action === 'report') {
+          const item = Items.list.find((i) => i.id === p.payload.id);
+          if (item) {
+            if (!item.reports) item.reports = [];
+            item.reports.push(p.payload.report);
+            item.status = p.payload.report.type;
+            item.updatedAt = new Date().toISOString();
+            upsert = [item];
+          }
+        } else if (p.action === 'import') {
+          this.applyImportRows(p.payload.rows, p.payload.mode);
+          upsert = Items.list.slice();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      Items.pending = Items.pending.filter((x) => x.id !== id);
+      Items.persistPending();
+      this.updatePendingBadge();
+      this.openPendingModal();
+      Items.commit({ upsert, removeIds, toast: '已核准並同步雲端' });
+    },
+    openUsersModal() {
+      document.getElementById('usersList').innerHTML = Auth.users
+        .map(
+          (u) =>
+            `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee"><div><strong>${escapeHtml(
+              u.username
+            )}</strong> <span class="role-badge role-${u.role}" style="margin-left:6px">${
+              u.role === 'admin' ? '管理員' : '操作員'
+            }</span> ${u.passwordHash ? '<span style="font-size:10px;color:#188038">🔐雜湊</span>' : '<span style="font-size:10px;color:#c5221f">需遷移</span>'}</div><div style="display:flex;gap:4px">${
+              u.username !== 'admin'
+                ? `<button class="secondary" style="padding:3px 8px;font-size:11px" onclick="setUserRole('${escapeHtml(u.username)}','${
+                    u.role === 'admin' ? 'operator' : 'admin'
+                  }')">${u.role === 'admin' ? '降為操作員' : '升為管理員'}</button><button class="danger" style="padding:3px 8px;font-size:11px" onclick="deleteUser('${escapeHtml(
+                    u.username
+                  )}')">刪除</button>`
+                : '<span style="font-size:11px;color:#9aa0a6">預設帳號</span>'
+            }</div></div>`
+        )
+        .join('');
+      document.getElementById('usersModal').classList.add('show');
+    },
+    setUserRole(username, role) {
+      const u = Auth.users.find((x) => x.username === username);
+      if (u) {
+        u.role = role;
+        u.updatedAt = new Date().toISOString();
+        Auth.persistUsers();
+        this.openUsersModal();
+      }
+    },
+    deleteUser(username) {
+      if (!confirm('確定刪除 ' + username + '？')) return;
+      Auth.users = Auth.users.filter((u) => u.username !== username);
+      Auth.persistUsers();
+      this.openUsersModal();
+    },
+
+    // --- Stats / filters / table / map：保留核心行為，精簡實作 ---
+    filterByStats(type) {
+      Items.statsFilter = Items.statsFilter === type ? null : type;
+      Items.scrapFilter = false;
+      this.updateScrapBtn();
+      if (type === 'near') window._expiryFilterDays = 30;
+      Items.slotFilter = null;
+      document.getElementById('searchInput').value = '';
+      const bar = document.getElementById('slotFilterBar');
+      if (bar) bar.classList.add('hidden');
+      Items.currentPage = 1;
+      this.renderTable();
+      this.renderStats();
+    },
+    toggleScrapFilter() {
+      Items.scrapFilter = !Items.scrapFilter;
+      if (Items.scrapFilter) Items.statsFilter = null;
+      this.updateScrapBtn();
+      Items.currentPage = 1;
+      this.renderTable();
+      this.renderStats();
+    },
+    updateScrapBtn() {
+      const btn = document.getElementById('btnFilterScrap');
+      if (!btn) return;
+      if (Items.scrapFilter) {
+        btn.classList.remove('secondary');
+        btn.classList.add('danger');
+        btn.textContent = '🗑 已隱藏報廢（點擊顯示）';
+      } else {
+        btn.classList.remove('danger');
+        btn.classList.add('secondary');
+        btn.textContent = '🗑 過濾報廢';
+      }
+    },
+    renderStats() {
+      const items = Items.list;
+      const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+      const lowStock = items.filter((i) => Number(i.quantity) <= 5).length;
+      const skuCount = new Set(items.map((i) => i.sku)).size;
+      const nearExpiry = items.filter((i) => {
+        const d = daysUntil(i.expiryDate);
+        return d !== null && d <= 30;
+      }).length;
+      const reportCount = items.filter((i) => i.status && i.status !== '正常').length;
+      const clk = (t) =>
+        `style="cursor:pointer;${Items.statsFilter === t ? 'outline:2px solid var(--primary);outline-offset:2px' : ''}" onclick="filterByStats('${t}')" title="點擊篩選"`;
+      document.getElementById('stats').innerHTML = `
+    <div class="stat-box"><div class="num">${items.length}</div><div class="label">總筆數</div></div>
+    <div class="stat-box"><div class="num">${skuCount}</div><div class="label">SKU</div></div>
+    <div class="stat-box"><div class="num">${totalQty}</div><div class="label">總數量</div></div>
+    <div class="stat-box" ${clk('low')}><div class="num" style="color:var(--danger)">${lowStock}</div><div class="label">低庫存</div></div>
+    <div class="stat-box" ${clk('near')}><div class="num" style="color:var(--warning)">${nearExpiry}</div><div class="label">30日內到期</div></div>
+    <div class="stat-box" ${clk('attention')}><div class="num" style="color:var(--purple)">${reportCount}</div><div class="label">需關注</div></div>`;
+    },
+    getFiltered() {
+      let list = Items.list.slice();
+      if (Items.slotFilter) list = list.filter((i) => i.location === Items.slotFilter);
+      if (Items.statsFilter === 'low') list = list.filter((i) => Number(i.quantity) <= 5);
+      else if (Items.statsFilter === 'near') {
+        const days = window._expiryFilterDays || 30;
+        list = list.filter((i) => {
+          const d = daysUntil(i.expiryDate);
+          return d !== null && d <= days;
+        });
+      } else if (Items.statsFilter === 'attention') list = list.filter((i) => i.status && i.status !== '正常');
+      if (Items.scrapFilter) list = list.filter((i) => i.status !== '報廢');
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      if (q)
+        list = list.filter(
+          (i) =>
+            (i.sku || '').toLowerCase().includes(q) ||
+            (i.productName || '').toLowerCase().includes(q) ||
+            (i.batchNo || '').toLowerCase().includes(q) ||
+            (i.location || '').toLowerCase().includes(q) ||
+            (i.note || '').toLowerCase().includes(q) ||
+            (i.status || '').toLowerCase().includes(q) ||
+            (i.unit || '').toLowerCase().includes(q)
+        );
+      list.sort((a, b) => {
+        let va = a[Items.sortKey],
+          vb = b[Items.sortKey];
+        if (Items.sortKey === 'quantity' || Items.sortKey === 'bulkQty') {
+          va = Number(va) || 0;
+          vb = Number(vb) || 0;
+          return Items.sortDir === 'asc' ? va - vb : vb - va;
+        }
+        if (Items.sortKey === 'expiryDate') {
+          va = va || '9999-12-31';
+          vb = vb || '9999-12-31';
+        }
+        va = String(va || '').toLowerCase();
+        vb = String(vb || '').toLowerCase();
+        if (va < vb) return Items.sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return Items.sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      return list;
+    },
+    sortTable(key) {
+      if (Items.sortKey === key) Items.sortDir = Items.sortDir === 'asc' ? 'desc' : 'asc';
+      else {
+        Items.sortKey = key;
+        Items.sortDir = 'asc';
+      }
+      Items.currentPage = 1;
+      this.renderTable();
+    },
+    onSearch() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      if (q) this.trackSearch(q);
+      Items.currentPage = 1;
+      this.renderTable();
+    },
+    renderTable() {
+      document.querySelectorAll('th.sortable').forEach((th) => {
+        th.classList.remove('asc', 'desc');
+        if (th.dataset.sort === Items.sortKey) th.classList.add(Items.sortDir);
+      });
+      const filtered = this.getFiltered();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (Items.currentPage > totalPages) Items.currentPage = totalPages;
+      const start = (Items.currentPage - 1) * PAGE_SIZE;
+      const pageItems = filtered.slice(start, start + PAGE_SIZE);
+      const tbody = document.getElementById('tableBody');
+      const empty = document.getElementById('emptyState');
+      document.getElementById('listInfo').textContent = `第 ${filtered.length ? start + 1 : 0}-${Math.min(
+        start + PAGE_SIZE,
+        filtered.length
+      )} 筆，共 ${filtered.length} 筆（全庫 ${Items.list.length}）`;
+      const cardList = document.getElementById('mobileCardList');
+      document.querySelectorAll('#mobileSortBar button').forEach((b) => {
+        const key = b.getAttribute('onclick') && b.getAttribute('onclick').match(/sortTable\('(\w+)'\)/);
+        b.classList.toggle('active', key && key[1] === Items.sortKey);
+      });
+      if (!filtered.length) {
+        tbody.innerHTML = '';
+        if (cardList) cardList.innerHTML = '';
+        empty.classList.remove('hidden');
+        document.getElementById('pagination').innerHTML = '';
+        this.renderStats();
+        return;
+      }
+      empty.classList.add('hidden');
+      const canW = Auth.canWrite();
+      tbody.innerHTML = pageItems
+        .map((item) => {
+          const qtyClass = Number(item.quantity) <= 5 ? 'qty low' : 'qty';
+          const hl = Items.highlightId === item.id ? 'highlight' : '';
+          const statusHtml = item.status
+            ? `<span class="status-badge status-${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>`
+            : '—';
+          let ops = '';
+          if (Items.compareMode) ops = `<button class="secondary" onclick="selectForCompare('${item.id}')">選擇</button>`;
+          else if (canW)
+            ops = `<button onclick="editItem('${item.id}')">編輯</button><button class="report-btn" onclick="openReportModal('${item.id}')">回報</button><button class="warning" onclick="adjustQty('${item.id}',1)">＋1</button><button class="warning" onclick="adjustQty('${item.id}',-1)">－1</button><button class="danger" onclick="deleteItem('${item.id}')">刪除</button>`;
+          else ops = `<span style="color:#9aa0a6;font-size:11px">僅檢視</span>`;
+          const bulkVal = Number(item.bulkQty) || 0;
+          const bulkUnit = item.bulkUnit || '個';
+          const unitOpts = UNITS.map((u) => `<option value="${u}" ${u === bulkUnit ? 'selected' : ''}>${u}</option>`).join('');
+          const bulkCell = canW
+            ? `<div class="bulk-cell"><input type="number" class="bulk-input" min="0" step="any" value="${bulkVal}" onchange="updateBulkQty('${item.id}',this.value)" onclick="event.stopPropagation()"><select class="bulk-unit-select" onchange="updateBulkUnit('${item.id}',this.value)" onclick="event.stopPropagation()">${unitOpts}</select></div>`
+            : `<span>${bulkVal} <span class="unit-tag">${escapeHtml(bulkUnit)}</span></span>`;
+          const checked = Items.selectedIds.has(item.id) ? 'checked' : '';
+          return `<tr data-id="${item.id}" class="${hl}">
+      <td class="chk"><input type="checkbox" class="row-chk" data-id="${item.id}" ${checked} onchange="toggleRowSelect('${item.id}',this.checked)" onclick="event.stopPropagation()"></td>
+      <td><strong style="font-size:11px">${escapeHtml(item.sku)}</strong></td>
+      <td><a href="javascript:void(0)" onclick="focusSlot('${escapeHtml(item.location)}')" style="color:var(--primary);font-size:12px">${escapeHtml(
+            item.location
+          )}</a></td>
+      <td>${escapeHtml(item.productName)}</td>
+      <td class="${qtyClass}">${item.quantity}</td>
+      <td><span class="unit-tag">${escapeHtml(item.unit || '個')}</span></td>
+      <td>${bulkCell}</td>
+      <td>${statusHtml}</td>
+      <td>${escapeHtml(item.batchNo || '-')}</td>
+      <td>${item.expiryDate || '-'}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(item.note || '')}">${escapeHtml(
+            item.note || '-'
+          )}</td>
+      <td class="actions">${ops}</td>
+    </tr>`;
+        })
+        .join('');
+      if (cardList) {
+        cardList.innerHTML = pageItems
+          .map((item) => {
+            const hl = Items.highlightId === item.id ? 'highlight' : '';
+            const statusHtml = item.status
+              ? `<span class="status-badge status-${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>`
+              : '—';
+            const checked = Items.selectedIds.has(item.id) ? 'checked' : '';
+            let ops = '';
+            if (Items.compareMode) ops = `<button class="secondary" onclick="selectForCompare('${item.id}')">選擇</button>`;
+            else if (canW)
+              ops = `<button onclick="editItem('${item.id}')">編輯</button><button class="report-btn" onclick="openReportModal('${item.id}')">回報</button><button class="warning" onclick="adjustQty('${item.id}',1)">＋1</button><button class="warning" onclick="adjustQty('${item.id}',-1)">－1</button><button class="danger" onclick="deleteItem('${item.id}')">刪除</button>`;
+            else ops = `<span style="color:#9aa0a6;font-size:11px">僅檢視</span>`;
+            const bulkVal = Number(item.bulkQty) || 0;
+            return `<div class="inv-card collapsed ${hl}" data-id="${item.id}">
+        <div class="ic-head"><div style="flex:1;min-width:0"><label style="display:flex;align-items:center;gap:6px">
+              <input type="checkbox" class="ic-chk row-chk" data-id="${item.id}" ${checked} onchange="toggleRowSelect('${item.id}',this.checked)" onclick="event.stopPropagation()">
+              <span class="ic-title">${escapeHtml(item.productName)}</span></label>
+            <div class="ic-row" style="margin:4px 0 0 22px"><span><strong>庫位</strong> <a href="javascript:void(0)" onclick="focusSlot('${escapeHtml(
+              item.location
+            )}')" style="color:var(--primary)">${escapeHtml(item.location)}</a></span></div>
+          </div><button type="button" class="ic-toggle" onclick="toggleInvCard(this)">展開</button></div>
+        <div class="ic-detail"><div class="ic-sku">SKU：${escapeHtml(item.sku)}　${statusHtml}</div>
+          <div class="ic-row"><span><strong>數量</strong> <span class="${Number(item.quantity) <= 5 ? 'qty low' : 'qty'}">${item.quantity}</span> <span class="unit-tag">${escapeHtml(
+              item.unit || '個'
+            )}</span></span><span><strong>散裝</strong> ${bulkVal} ${escapeHtml(item.bulkUnit || '個')}</span></div>
+          <div class="ic-row"><span><strong>批號</strong> ${escapeHtml(item.batchNo || '-')}</span><span><strong>效期</strong> ${
+              item.expiryDate || '-'
+            }</span></div>
+          ${item.note ? `<div class="ic-row"><span><strong>備註</strong> ${escapeHtml(item.note)}</span></div>` : ''}
+        </div><div class="ic-actions">${ops}</div></div>`;
+          })
+          .join('');
+      }
+      this.updateBatchBar();
+      const chkAll = document.getElementById('chkAll');
+      if (chkAll) {
+        const pageIds = pageItems.map((i) => i.id);
+        chkAll.checked = pageIds.length > 0 && pageIds.every((id) => Items.selectedIds.has(id));
+      }
+      let pages = '';
+      const btn = (label, page, disabled, active) =>
+        `<button ${disabled ? 'disabled' : ''} class="${active ? '' : 'secondary'}" onclick="goPage(${page})">${label}</button>`;
+      pages += btn('首頁', 1, Items.currentPage === 1);
+      pages += btn('上一頁', Items.currentPage - 1, Items.currentPage === 1);
+      let from = Math.max(1, Items.currentPage - 2),
+        to = Math.min(totalPages, Items.currentPage + 2);
+      for (let p = from; p <= to; p++) pages += btn(String(p), p, false, p === Items.currentPage);
+      pages += btn('下一頁', Items.currentPage + 1, Items.currentPage === totalPages);
+      pages += btn('末頁', totalPages, Items.currentPage === totalPages);
+      pages += `<span class="page-info">${Items.currentPage} / ${totalPages}</span>`;
+      document.getElementById('pagination').innerHTML = pages;
+      this.renderStats();
+      this.updateMarquee();
+    },
+    goPage(p) {
+      const filtered = this.getFiltered();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      Items.currentPage = Math.min(Math.max(1, p), totalPages);
+      this.renderTable();
+    },
+
+    // Map
+    renderZoneTabs() {
+      document.getElementById('zoneTabs').innerHTML = Items.layout.zones
+        .map(
+          (z) =>
+            `<button class="zone-tab ${z.id === MapUI.currentZoneId ? 'active' : ''}" onclick="switchZone('${z.id}')">${escapeHtml(
+              z.name
+            )}</button>`
+        )
+        .join('');
+    },
+    switchZone(id) {
+      MapUI.currentZoneId = id;
+      MapUI.currentFloor = 1;
+      MapUI.selectedSlotCode = null;
+      this.hideSlotDetail();
+      this.renderZoneTabs();
+      this.updateFloorSelect();
+      this.renderMap();
+    },
+    updateFloorSelect() {
+      const zone = Items.layout.zones.find((z) => z.id === MapUI.currentZoneId);
+      const sel = document.getElementById('floorSelect');
+      if (!zone) {
+        sel.innerHTML = '';
+        return;
+      }
+      sel.innerHTML = Array.from(
+        { length: zone.floors },
+        (_, i) => `<option value="${i + 1}" ${MapUI.currentFloor === i + 1 ? 'selected' : ''}>${i + 1}F</option>`
+      ).join('');
+    },
+    onFloorChange() {
+      MapUI.currentFloor = Number(document.getElementById('floorSelect').value);
+      MapUI.selectedSlotCode = null;
+      this.hideSlotDetail();
+      this.renderMap();
+    },
+    onMapColsChange() {
+      const sel = document.getElementById('mapColsSelect');
+      MapUI.mapColsPref = sel ? sel.value : 'auto';
+      localStorage.setItem(KEYS.mapCols, MapUI.mapColsPref);
+      this.renderMap();
+    },
+    renderMap() {
+      const zone = Items.layout.zones.find((z) => z.id === MapUI.currentZoneId);
+      const grid = document.getElementById('mapGrid');
+      if (!zone) {
+        grid.innerHTML = '<div class="empty">請設定格局</div>';
+        return;
+      }
+      const n = zone.slotsPerFloor;
+      const isMobile = window.innerWidth <= 768;
+      const colsSel = document.getElementById('mapColsSelect');
+      if (colsSel && colsSel.value !== MapUI.mapColsPref) colsSel.value = MapUI.mapColsPref;
+      let cols;
+      if (isMobile && ['2', '3', '4', '5'].includes(String(MapUI.mapColsPref))) cols = Number(MapUI.mapColsPref);
+      else cols = n <= 11 ? n : Math.ceil(n / 2);
+      const minW = isMobile ? (cols <= 2 ? 90 : cols <= 3 ? 60 : 44) : n <= 11 ? 80 : 72;
+      grid.style.gridTemplateColumns = `repeat(${cols},minmax(${minW}px,1fr))`;
+      let emptyCount = 0,
+        html = '';
+      for (let s = 1; s <= n; s++) {
+        const code = slotCode(zone.name, MapUI.currentFloor, s);
+        const status = Items.getSlotStatus(code);
+        if (status === 'empty') emptyCount++;
+        const list = Items.getInSlot(code);
+        const selected = MapUI.selectedSlotCode === code ? 'selected' : '';
+        const emptyClass = status === 'empty' ? ' empty' : '';
+        let body = '';
+        if (!list.length) body = `<div class="slot-qty">空</div>`;
+        else {
+          const idx = (MapUI.slotCarouselIndex[code] || 0) % list.length;
+          const item = list[idx];
+          const name = item.productName || item.sku || '-';
+          const qty = item.quantity != null ? item.quantity : 0;
+          const unit = item.unit || '個';
+          const dots =
+            list.length > 1
+              ? `<div class="slot-dots">${list
+                  .map((_, i) => `<span class="carousel-dot${i === idx ? ' active' : ''}"></span>`)
+                  .join('')}</div>`
+              : '';
+          body = `<div class="slot-prod" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+        <div class="slot-qty">${qty}${escapeHtml(unit)}</div>
+        <div class="slot-count">共${list.length}件</div>${dots}`;
+        }
+        html += `<div class="slot ${status}${emptyClass} ${selected}" data-code="${escapeHtml(code)}" data-item-count="${
+          list.length
+        }" onclick="onSlotClick(event,'${escapeHtml(code)}')" title="${escapeHtml(code)}"><div class="slot-code">${s}</div>${body}</div>`;
+      }
+      grid.innerHTML = html;
+      const rows = Math.ceil(n / cols);
+      document.getElementById('emptyCount').textContent = `空：${emptyCount}/${n}　${zone.name}${MapUI.currentFloor}F（${rows}排×${cols}格）`;
+      if (typeof MapUI.slotColors === 'object') {
+        document.querySelectorAll('.slot[data-code]').forEach((el) => {
+          const code = el.getAttribute('data-code');
+          if (MapUI.slotColors[code]) {
+            el.style.background = MapUI.slotColors[code];
+            if (window.innerWidth <= 768) el.style.opacity = '0.85';
+            el.style.borderColor = window.innerWidth <= 768 ? 'rgba(51,51,51,.4)' : '#333';
+          }
+        });
+      }
+      this.startSlotCarousel();
+    },
+    startSlotCarousel() {
+      if (MapUI.slotCarouselTimer) clearInterval(MapUI.slotCarouselTimer);
+      MapUI.slotCarouselTimer = setInterval(() => {
+        document.querySelectorAll('.slot[data-item-count]').forEach((el) => {
+          const cnt = Number(el.getAttribute('data-item-count') || 0);
+          if (cnt <= 1) return;
+          const code = el.getAttribute('data-code');
+          MapUI.slotCarouselIndex[code] = ((MapUI.slotCarouselIndex[code] || 0) + 1) % cnt;
+          const list = Items.getInSlot(code);
+          if (!list.length) return;
+          const idx = (MapUI.slotCarouselIndex[code] || 0) % list.length;
+          const item = list[idx];
+          const name = item.productName || item.sku || '-';
+          const prodEl = el.querySelector('.slot-prod');
+          const qtyEl = el.querySelector('.slot-qty');
+          const countEl = el.querySelector('.slot-count');
+          const dotsEl = el.querySelector('.slot-dots');
+          if (prodEl) {
+            prodEl.textContent = name;
+            prodEl.title = name;
+          }
+          if (qtyEl) qtyEl.textContent = (item.quantity != null ? item.quantity : 0) + (item.unit || '個');
+          if (countEl) countEl.textContent = '共' + list.length + '件';
+          if (dotsEl)
+            dotsEl.innerHTML = list.map((_, i) => `<span class="carousel-dot${i === idx ? ' active' : ''}"></span>`).join('');
+        });
+      }, 5000);
+    },
+    toggleJumpMode() {
+      MapUI.jumpMode = !MapUI.jumpMode;
+      const btn = document.getElementById('jumpToggle');
+      if (btn) {
+        btn.classList.toggle('active', MapUI.jumpMode);
+        btn.textContent = MapUI.jumpMode ? '📋 跳轉模式：開' : '📋 點擊跳轉列表';
+      }
+      if (MapUI.jumpMode) this.hideSlotDetail();
+    },
+    onSlotClick(e, code) {
+      e.stopPropagation();
+      MapUI.selectedSlotCode = code;
+      this.renderMap();
+      if (MapUI.jumpMode) {
+        this.hideSlotDetail();
+        this.filterListBySlot(code);
+        return;
+      }
+      const list = Items.getInSlot(code);
+      const detail = document.getElementById('slotDetail');
+      const rect = e.currentTarget.getBoundingClientRect();
+      let content = `<h4>${escapeHtml(code)}</h4>`;
+      if (!list.length) {
+        content += `<p style="color:#9aa0a6">空庫位</p><div class="btns">`;
+        if (Auth.canWrite()) content += `<button onclick="openModalForSlot('${escapeHtml(code)}')">＋ 在此入庫</button>`;
+        content += `<button class="secondary" onclick="filterListBySlot('${escapeHtml(
+          code
+        )}')">📋 列表顯示此庫位（0件）</button><button class="outline" onclick="openSlotColorPicker('${escapeHtml(
+          code
+        )}');hideSlotDetail()">🎨 配色</button></div>`;
+      } else {
+        list.forEach((item) => {
+          const d = daysUntil(item.expiryDate);
+          const expText = item.expiryDate ? (d < 0 ? `已過期${-d}天` : d <= 15 ? `${d}天後到期` : item.expiryDate) : '-';
+          const st =
+            item.status && item.status !== '正常'
+              ? `<span class="status-badge status-${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>`
+              : '';
+          content += `<p><strong>${escapeHtml(item.productName)}</strong> ${st}</p><p>SKU：${escapeHtml(
+            item.sku
+          )}　<span class="qty">${item.quantity}</span> <span class="unit-tag">${escapeHtml(
+            item.unit || '個'
+          )}</span></p><p>批號：${escapeHtml(item.batchNo || '-')}　效期：${expText}</p>`;
+          if (Auth.canWrite())
+            content += `<div class="btns" style="margin-bottom:8px"><button onclick="editItem('${item.id}');hideSlotDetail()">編輯</button><button class="report-btn" onclick="openReportModal('${item.id}');hideSlotDetail()">回報</button><button class="warning" onclick="adjustQty('${item.id}',1)">＋1</button><button class="warning" onclick="adjustQty('${item.id}',-1)">－1</button><button class="secondary" onclick="highlightRow('${item.id}')">列表</button></div>`;
+          else content += `<div class="btns" style="margin-bottom:8px"><button class="secondary" onclick="highlightRow('${item.id}')">在列表顯示</button></div>`;
+        });
+        content += `<div class="btns"><button class="secondary" onclick="filterListBySlot('${escapeHtml(code)}')">📋 列表顯示此庫位（${
+          list.length
+        }件）</button>`;
+        if (Auth.canWrite()) content += `<button onclick="openModalForSlot('${escapeHtml(code)}')">＋ 再入庫</button>`;
+        content += `<button class="outline" onclick="openSlotColorPicker('${escapeHtml(code)}');hideSlotDetail()">🎨 配色</button></div>`;
+      }
+      detail.innerHTML = content;
+      detail.classList.add('show');
+      const top = window.scrollY + rect.bottom + 6;
+      let left = window.scrollX + rect.left;
+      if (left + 280 > window.innerWidth) left = window.scrollX + rect.right - 280;
+      detail.style.top = top + 'px';
+      detail.style.left = Math.max(8, left) + 'px';
+    },
+    hideSlotDetail() {
+      const d = document.getElementById('slotDetail');
+      d.classList.remove('show');
+      d.style.transform = '';
+      d.style.opacity = '';
+    },
+    filterListBySlot(code) {
+      Items.slotFilter = code;
+      document.getElementById('searchInput').value = '';
+      Items.currentPage = 1;
+      this.hideSlotDetail();
+      this.renderTable();
+      const bar = document.getElementById('slotFilterBar');
+      if (bar) {
+        bar.classList.remove('hidden');
+        bar.querySelector('.sf-text').textContent = '目前只顯示儲位：' + code + '（' + Items.getInSlot(code).length + ' 件）';
+      }
+      const cards = document.querySelectorAll('.card');
+      if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    clearSlotFilter() {
+      Items.slotFilter = null;
+      const bar = document.getElementById('slotFilterBar');
+      if (bar) bar.classList.add('hidden');
+      Items.currentPage = 1;
+      this.renderTable();
+    },
+    focusSlot(code) {
+      for (const z of Items.layout.zones) {
+        for (let f = 1; f <= z.floors; f++) {
+          for (let s = 1; s <= z.slotsPerFloor; s++) {
+            if (slotCode(z.name, f, s) === code) {
+              MapUI.currentZoneId = z.id;
+              MapUI.currentFloor = f;
+              MapUI.selectedSlotCode = code;
+              this.renderZoneTabs();
+              this.updateFloorSelect();
+              this.renderMap();
+              setTimeout(() => {
+                const el = document.querySelector(`.slot[data-code="${CSS.escape(code)}"]`);
+                if (el) el.click();
+              }, 80);
+              return;
+            }
+          }
+        }
+      }
+      MapUI.selectedSlotCode = code;
+      this.renderMap();
+    },
+    highlightRow(id) {
+      Items.highlightId = id;
+      const filtered = this.getFiltered();
+      const idx = filtered.findIndex((i) => i.id === id);
+      if (idx >= 0) Items.currentPage = Math.floor(idx / PAGE_SIZE) + 1;
+      this.renderTable();
+      setTimeout(() => {
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+      setTimeout(() => {
+        Items.highlightId = null;
+        this.renderTable();
+      }, 3000);
+      this.hideSlotDetail();
+    },
+    jumpMapToLocation(code) {
+      const target = normLoc(code);
+      if (!target) return;
+      for (const z of Items.layout.zones) {
+        for (let f = 1; f <= z.floors; f++) {
+          for (let s = 1; s <= z.slotsPerFloor; s++) {
+            if (normLoc(slotCode(z.name, f, s)) === target) {
+              MapUI.currentZoneId = z.id;
+              MapUI.currentFloor = f;
+              MapUI.selectedSlotCode = target;
+              this.renderZoneTabs();
+              this.updateFloorSelect();
+              return;
+            }
+          }
+        }
+      }
+    },
+
+    // CRUD
+    updateLocationOptions() {
+      const zoneId = document.getElementById('zoneSelect').value;
+      const zone = Items.layout.zones.find((z) => z.id === zoneId);
+      const slotSel = document.getElementById('slotSelect');
+      const floorSel = document.getElementById('floorSelectForm');
+      if (!zone) {
+        slotSel.innerHTML = '';
+        return;
+      }
+      const prev = floorSel.value;
+      floorSel.innerHTML = Array.from({ length: zone.floors }, (_, i) => `<option value="${i + 1}">${i + 1}F</option>`).join('');
+      if (prev && Number(prev) <= zone.floors) floorSel.value = prev;
+      const f = Number(floorSel.value) || 1;
+      slotSel.innerHTML = Array.from({ length: zone.slotsPerFloor }, (_, i) => {
+        const code = slotCode(zone.name, f, i + 1);
+        const st = Items.getSlotStatus(code);
+        return `<option value="${code}">${code} ${st === 'empty' ? '(空)' : '(有貨)'}</option>`;
+      }).join('');
+    },
+    fillZoneSelects() {
+      document.getElementById('zoneSelect').innerHTML = Items.layout.zones
+        .map((z) => `<option value="${z.id}">${escapeHtml(z.name)}</option>`)
+        .join('');
+      this.updateLocationOptions();
+    },
+    openModal(id) {
+      if (!Auth.canWrite()) return;
+      document.getElementById('modal').classList.add('show');
+      document.getElementById('itemForm').reset();
+      document.getElementById('editId').value = '';
+      document.getElementById('unit').value = '個';
+      document.getElementById('bulkQty').value = '0';
+      document.getElementById('bulkUnit').value = '個';
+      this.fillZoneSelects();
+      document.getElementById('btnSaveItem').textContent =
+        Auth.isOperator() && !Auth.isAdmin() ? '送出申請（待審核）' : '儲存';
+      if (id) {
+        const item = Items.list.find((i) => i.id === id);
+        if (!item) return;
+        document.getElementById('modalTitle').textContent = '編輯庫存';
+        document.getElementById('editId').value = item.id;
+        document.getElementById('sku').value = item.sku;
+        document.getElementById('quantity').value = item.quantity;
+        document.getElementById('unit').value = item.unit || '個';
+        document.getElementById('bulkQty').value = item.bulkQty != null ? item.bulkQty : 0;
+        document.getElementById('bulkUnit').value = item.bulkUnit || '個';
+        document.getElementById('productName').value = item.productName;
+        document.getElementById('batchNo').value = item.batchNo || '';
+        document.getElementById('expiryDate').value = item.expiryDate || '';
+        document.getElementById('note').value = item.note || '';
+        document.getElementById('locationManual').value = item.location || '';
+      } else {
+        document.getElementById('modalTitle').textContent = '新增入庫';
+        if (MapUI.selectedSlotCode) document.getElementById('locationManual').value = MapUI.selectedSlotCode;
+      }
+    },
+    saveItem(e) {
+      e.preventDefault();
+      const id = document.getElementById('editId').value;
+      const location = normLoc(document.getElementById('locationManual').value.trim() || document.getElementById('slotSelect').value);
+      if (!location) {
+        alert('請選擇或輸入儲位');
+        return;
+      }
+      let unit = document.getElementById('unit').value;
+      if (!UNITS.includes(unit)) unit = '個';
+      let bulkUnit = document.getElementById('bulkUnit').value;
+      if (!UNITS.includes(bulkUnit)) bulkUnit = '個';
+      const data = {
+        sku: document.getElementById('sku').value.trim(),
+        quantity: Number(document.getElementById('quantity').value) || 0,
+        unit,
+        bulkQty: Math.max(0, Number(document.getElementById('bulkQty').value) || 0),
+        bulkUnit,
+        location,
+        productName: document.getElementById('productName').value.trim(),
+        batchNo: document.getElementById('batchNo').value.trim(),
+        expiryDate: document.getElementById('expiryDate').value,
+        note: document.getElementById('note').value.trim()
+      };
+      const dup = Items.list.find((i) => i.sku === data.sku && i.id !== id);
+      if (dup && Auth.canDirectWrite()) {
+        alert('此 SKU 已存在');
+        return;
+      }
+      if (Auth.canDirectWrite()) {
+        let saved = null;
+        if (id) {
+          const idx = Items.list.findIndex((i) => i.id === id);
+          if (idx !== -1) {
+            Items.list[idx] = Object.assign({}, Items.list[idx], data, { updatedAt: new Date().toISOString() });
+            saved = Items.list[idx];
+          }
+        } else {
+          saved = Object.assign(
+            {
+              id: uid('id'),
+              status: '正常',
+              reports: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            },
+            data
+          );
+          Items.list.push(saved);
+        }
+        document.getElementById('modal').classList.remove('show');
+        this.jumpMapToLocation(location);
+        Items.commit({ upsert: saved ? [saved] : [], toast: id ? '已更新並同步' : '已新增並同步' });
+      } else {
+        if (id) Items.submitPending('edit', Object.assign({ id }, data), `編輯 ${data.sku} / ${data.productName}`);
+        else {
+          const newId = uid('id');
+          Items.submitPending(
+            'add',
+            Object.assign(
+              { id: newId, status: '正常', reports: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+              data
+            ),
+            `新增 ${data.sku} / ${data.productName}`
+          );
+        }
+        document.getElementById('modal').classList.remove('show');
+      }
+    },
+    deleteItem(id) {
+      if (!Auth.canWrite()) return;
+      const item = Items.list.find((i) => i.id === id);
+      if (!item) return;
+      if (!confirm('確定刪除「' + item.productName + '」？')) return;
+      if (Auth.canDirectWrite()) {
+        Items.list = Items.list.filter((i) => i.id !== id);
+        Items.commit({ removeIds: [id], toast: '已刪除' });
+      } else Items.submitPending('delete', { id }, `刪除 ${item.sku} / ${item.productName}`);
+    },
+    adjustQty(id, delta) {
+      if (!Auth.canWrite()) return;
+      const item = Items.list.find((i) => i.id === id);
+      if (!item) return;
+      const newQty = Math.max(0, Number(item.quantity) + delta);
+      if (Auth.canDirectWrite()) {
+        item.quantity = newQty;
+        item.updatedAt = new Date().toISOString();
+        Items.commit({ upsert: [item], render: true });
+        if (MapUI.selectedSlotCode) {
+          const el = document.querySelector(`.slot[data-code="${CSS.escape(MapUI.selectedSlotCode)}"]`);
+          if (el) el.click();
+        }
+      } else Items.submitPending('edit', { id, quantity: newQty }, `調整數量 ${item.sku} → ${newQty}`);
+    },
+    updateBulkQty(id, val) {
+      if (!Auth.canWrite()) return;
+      const item = Items.list.find((i) => i.id === id);
+      if (!item) return;
+      const n = Math.max(0, Number(val) || 0);
+      if (Auth.canDirectWrite()) {
+        item.bulkQty = n;
+        item.updatedAt = new Date().toISOString();
+        Items.commit({ upsert: [item], render: false });
+      } else Items.submitPending('edit', { id, bulkQty: n }, `調整散裝 ${item.sku} → ${n}`);
+    },
+    updateBulkUnit(id, val) {
+      if (!Auth.canWrite()) return;
+      const item = Items.list.find((i) => i.id === id);
+      if (!item) return;
+      let unit = val;
+      if (!UNITS.includes(unit)) unit = '個';
+      if (Auth.canDirectWrite()) {
+        item.bulkUnit = unit;
+        item.updatedAt = new Date().toISOString();
+        Items.commit({ upsert: [item], render: false });
+      } else Items.submitPending('edit', { id, bulkUnit: unit }, `調整散裝單位 ${item.sku} → ${unit}`);
+    },
+    openReportModal(id) {
+      if (!Auth.canWrite()) return;
+      const item = Items.list.find((i) => i.id === id);
+      if (!item) return;
+      this.selectedReportType = null;
+      document.querySelectorAll('.report-type-btn').forEach((b) => b.classList.remove('selected'));
+      document.getElementById('reportItemId').value = id;
+      document.getElementById('reportNote').value = '';
+      document.getElementById('reportTarget').innerHTML = `<strong>${escapeHtml(item.productName)}</strong>（${escapeHtml(item.sku)}）`;
+      const history = item.reports || [];
+      document.getElementById('reportHistory').innerHTML = history.length
+        ? history
+            .slice()
+            .reverse()
+            .map(
+              (r) =>
+                `<div style="padding:4px 0;border-bottom:1px solid #eee"><span class="status-badge status-${escapeHtml(
+                  r.type
+                )}">${escapeHtml(r.type)}</span> <span style="color:#5f6368;margin-left:6px">${escapeHtml(r.time)}</span>${
+                  r.note ? `<div>${escapeHtml(r.note)}</div>` : ''
+                }</div>`
+            )
+            .join('')
+        : '<span style="color:#9aa0a6">尚無紀錄</span>';
+      document.getElementById('reportModal').classList.add('show');
+    },
+    selectReportType(btn) {
+      document.querySelectorAll('.report-type-btn').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      this.selectedReportType = btn.dataset.type;
+    },
+    submitReport() {
+      if (!this.selectedReportType) {
+        alert('請選擇回報類別');
+        return;
+      }
+      const id = document.getElementById('reportItemId').value;
+      const item = Items.list.find((i) => i.id === id);
+      if (!item) return;
+      const note = document.getElementById('reportNote').value.trim();
+      const timeStr = new Date().toLocaleString('zh-TW', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const report = { type: this.selectedReportType, note, time: timeStr };
+      if (Auth.canWrite()) {
+        if (!item.reports) item.reports = [];
+        item.reports.push(report);
+        item.status = this.selectedReportType;
+        item.updatedAt = new Date().toISOString();
+        document.getElementById('reportModal').classList.remove('show');
+        Items.commit({ upsert: [item], toast: '回報已儲存並同步' });
+      } else alert('訪客無法回報');
+    },
+
+    // Import / Export
+    openImportModal() {
+      if (!Auth.canWrite()) return;
+      this.pendingImportRows = [];
+      document.getElementById('csvFile').value = '';
+      document.getElementById('importPreviewWrap').classList.add('hidden');
+      document.getElementById('importConfirmBtn').disabled = true;
+      document.getElementById('importModal').classList.add('show');
+    },
+    parseCSVText(text) {
+      if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+      const lines = [];
+      let current = '',
+        inQ = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (c === '"') {
+          if (inQ && text[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else inQ = !inQ;
+        } else if ((c === '\n' || c === '\r') && !inQ) {
+          if (c === '\r' && text[i + 1] === '\n') i++;
+          lines.push(current);
+          current = '';
+        } else current += c;
+      }
+      if (current) lines.push(current);
+      return lines
+        .filter((l) => l.trim())
+        .map((line) => {
+          const cols = [];
+          let cur = '',
+            q = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              if (q && line[i + 1] === '"') {
+                cur += '"';
+                i++;
+              } else q = !q;
+            } else if (ch === ',' && !q) {
+              cols.push(cur.trim());
+              cur = '';
+            } else cur += ch;
+          }
+          cols.push(cur.trim());
+          return cols;
+        });
+    },
+    mapHeader(h) {
+      const key = String(h || '')
+        .toLowerCase()
+        .replace(/\s/g, '')
+        .replace(/[_-]/g, '');
+      const map = {
+        sku: 'sku',
+        儲位: 'location',
+        location: 'location',
+        儲位號: 'location',
+        loc: 'location',
+        產品名稱: 'productName',
+        productname: 'productName',
+        品名: 'productName',
+        product: 'productName',
+        庫存數量: 'quantity',
+        quantity: 'quantity',
+        數量: 'quantity',
+        qty: 'quantity',
+        庫存: 'quantity',
+        單位: 'unit',
+        unit: 'unit',
+        散裝: 'bulkQty',
+        散裝數量: 'bulkQty',
+        bulkqty: 'bulkQty',
+        bulk: 'bulkQty',
+        散裝單位: 'bulkUnit',
+        bulkunit: 'bulkUnit',
+        批號: 'batchNo',
+        batchno: 'batchNo',
+        batch: 'batchNo',
+        有效日期: 'expiryDate',
+        expirydate: 'expiryDate',
+        效期: 'expiryDate',
+        expiry: 'expiryDate',
+        備註: 'note',
+        note: 'note',
+        狀態: 'status',
+        status: 'status'
+      };
+      return map[key] || map[h] || null;
+    },
+    previewCSV(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const rows = this.parseCSVText(ev.target.result);
+          if (rows.length < 2) {
+            alert('CSV 至少需要表頭與一筆資料');
+            return;
+          }
+          const fieldMap = rows[0].map((h) => this.mapHeader(h));
+          this.pendingImportRows = [];
+          for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const obj = {
+              sku: '',
+              productName: '',
+              quantity: 1,
+              unit: '個',
+              bulkQty: 0,
+              bulkUnit: '個',
+              location: '',
+              batchNo: '',
+              expiryDate: '',
+              note: '',
+              status: '正常'
+            };
+            fieldMap.forEach((f, idx) => {
+              if (!f || row[idx] == null) return;
+              let val = row[idx];
+              if (f === 'quantity' || f === 'bulkQty') {
+                const n = Number(val);
+                val = val === '' || val == null || isNaN(n) ? (f === 'quantity' ? 1 : 0) : n;
+              }
+              if (f === 'unit' || f === 'bulkUnit') {
+                val = String(val).trim();
+                if (!UNITS.includes(val)) val = '其他';
+              }
+              if (f === 'expiryDate') val = val.replace(/\//g, '-').slice(0, 10);
+              if (f === 'status' && !REPORT_TYPES.includes(val)) val = '正常';
+              obj[f] = val;
+            });
+            if (!obj.sku && !obj.productName) continue;
+            if (!obj.sku) obj.sku = 'IMP-' + Date.now() + '-' + i;
+            if (!obj.productName) obj.productName = obj.sku;
+            if (!obj.location) obj.location = '未指定';
+            this.pendingImportRows.push(obj);
+          }
+          const preview = this.pendingImportRows.slice(0, 5);
+          let html = '<table><thead><tr><th>SKU</th><th>儲位</th><th>產品</th><th>數量</th><th>單位</th><th>狀態</th></tr></thead><tbody>';
+          preview.forEach((r) => {
+            html += `<tr><td>${escapeHtml(r.sku)}</td><td>${escapeHtml(r.location)}</td><td>${escapeHtml(r.productName)}</td><td>${
+              r.quantity
+            }</td><td>${escapeHtml(r.unit)}</td><td>${escapeHtml(r.status)}</td></tr>`;
+          });
+          html += '</tbody></table>';
+          document.getElementById('importPreview').innerHTML = html;
+          document.getElementById('importCount').textContent = `共解析 ${this.pendingImportRows.length} 筆`;
+          document.getElementById('importPreviewWrap').classList.remove('hidden');
+          document.getElementById('importConfirmBtn').disabled = !this.pendingImportRows.length;
+        } catch (err) {
+          alert('解析失敗：' + err.message);
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    },
+    applyImportRows(rows, mode) {
+      let added = 0,
+        updated = 0;
+      if (mode === 'replace') Items.list = [];
+      rows.forEach((row) => {
+        const exist = Items.list.find((i) => i.sku === row.sku);
+        if (mode === 'merge' && exist) {
+          Object.assign(exist, {
+            productName: row.productName || exist.productName,
+            quantity: row.quantity,
+            unit: row.unit || exist.unit,
+            bulkQty: row.bulkQty != null ? row.bulkQty : exist.bulkQty || 0,
+            bulkUnit: row.bulkUnit || exist.bulkUnit || '個',
+            location: row.location || exist.location,
+            batchNo: row.batchNo || exist.batchNo,
+            expiryDate: row.expiryDate || exist.expiryDate,
+            note: row.note || exist.note,
+            status: row.status || exist.status,
+            updatedAt: new Date().toISOString()
+          });
+          updated++;
+        } else {
+          Items.list.push({
+            id: uid('id'),
+            sku: row.sku,
+            productName: row.productName,
+            quantity: row.quantity,
+            unit: row.unit || '個',
+            bulkQty: row.bulkQty || 0,
+            bulkUnit: row.bulkUnit || '個',
+            location: row.location,
+            batchNo: row.batchNo,
+            expiryDate: row.expiryDate,
+            note: row.note,
+            status: row.status || '正常',
+            reports: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          added++;
+        }
+      });
+      return { added, updated };
+    },
+    doImportCSV() {
+      if (!this.pendingImportRows.length) return;
+      const mode = document.getElementById('importMode').value;
+      if (Auth.canDirectWrite()) {
+        const r = this.applyImportRows(this.pendingImportRows, mode);
+        document.getElementById('importModal').classList.remove('show');
+        Items.currentPage = 1;
+        Items.commit({ upsert: Items.list.slice(), toast: '匯入完成 新增' + r.added + ' 更新' + r.updated });
+      } else {
+        Items.submitPending('import', { rows: this.pendingImportRows, mode }, '匯入 CSV ' + this.pendingImportRows.length + ' 筆');
+        document.getElementById('importModal').classList.remove('show');
+      }
+    },
+    exportCSV() {
+      if (Auth.isGuest()) return;
+      const filtered = this.getFiltered();
+      if (!filtered.length) {
+        alert('沒有資料');
+        return;
+      }
+      const headers = ['SKU', '儲位', '產品名稱', '庫存數量', '單位', '散裝', '散裝單位', '狀態', '批號', '有效日期', '備註'];
+      const rows = filtered.map((i) => [
+        i.sku,
+        i.location,
+        i.productName,
+        i.quantity,
+        i.unit || '個',
+        i.bulkQty || 0,
+        i.bulkUnit || '個',
+        i.status || '正常',
+        i.batchNo || '',
+        i.expiryDate || '',
+        i.note || ''
+      ]);
+      const csv = [headers, ...rows].map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '庫存_' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+    },
+    doExportExcel(list, prefix) {
+      const headers = ['SKU', '儲位', '產品名稱', '庫存數量', '單位', '散裝', '散裝單位', '狀態', '批號', '有效日期', '備註'];
+      let html =
+        '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table border="1"><tr>' +
+        headers.map((h) => '<th>' + h + '</th>').join('') +
+        '</tr>';
+      list.forEach((i) => {
+        html +=
+          '<tr><td>' +
+          [i.sku, i.location, i.productName, i.quantity, i.unit || '個', i.bulkQty || 0, i.bulkUnit || '個', i.status || '正常', i.batchNo || '', i.expiryDate || '', i.note || '']
+            .map((c) => String(c).replace(/</g, '&lt;'))
+            .join('</td><td>') +
+          '</td></tr>';
+      });
+      html += '</table></body></html>';
+      const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (prefix || '庫存') + '_' + new Date().toISOString().slice(0, 10) + '.xls';
+      a.click();
+    },
+    exportExcel() {
+      const list = this.getFiltered();
+      if (!list.length) {
+        alert('沒有資料');
+        return;
+      }
+      this.doExportExcel(list, '庫存');
+    },
+    exportSelectedExcel() {
+      const list = Items.list.filter((i) => Items.selectedIds.has(i.id));
+      if (!list.length) {
+        alert('尚未選擇資料');
+        return;
+      }
+      this.doExportExcel(list, '已選庫存');
+    },
+
+    // Batch
+    toggleBatchMode() {
+      this.batchMode = !this.batchMode;
+      const btn = document.getElementById('btnBatch');
+      if (btn) {
+        btn.classList.toggle('danger', this.batchMode);
+        btn.textContent = this.batchMode ? '☑️ 結束批次' : '☑️ 批次選擇';
+      }
+      if (!this.batchMode) {
+        Items.selectedIds.clear();
+        this.updateBatchBar();
+      }
+      this.renderTable();
+    },
+    toggleRowSelect(id, checked) {
+      if (checked) Items.selectedIds.add(id);
+      else Items.selectedIds.delete(id);
+      this.updateBatchBar();
+    },
+    toggleSelectAll(el) {
+      document.querySelectorAll('.row-chk').forEach((chk) => {
+        chk.checked = el.checked;
+        if (el.checked) Items.selectedIds.add(chk.dataset.id);
+        else Items.selectedIds.delete(chk.dataset.id);
+      });
+      this.updateBatchBar();
+    },
+    clearBatchSelection() {
+      Items.selectedIds.clear();
+      this.updateBatchBar();
+      this.renderTable();
+    },
+    updateBatchBar() {
+      const bar = document.getElementById('batchBar');
+      const cnt = document.getElementById('batchCount');
+      if (!bar) return;
+      if (Items.selectedIds.size > 0) {
+        bar.classList.add('show');
+        if (cnt) cnt.textContent = '已選 ' + Items.selectedIds.size + ' 筆';
+      } else bar.classList.remove('show');
+    },
+    batchDelete() {
+      if (!Items.selectedIds.size) return;
+      if (!Auth.canWrite()) {
+        alert('無權限');
+        return;
+      }
+      if (!confirm('確定刪除已選的 ' + Items.selectedIds.size + ' 筆？')) return;
+      if (Auth.canDirectWrite()) {
+        const ids = [...Items.selectedIds];
+        Items.list = Items.list.filter((i) => !Items.selectedIds.has(i.id));
+        Items.selectedIds.clear();
+        this.updateBatchBar();
+        Items.commit({ removeIds: ids, toast: '已批次刪除 ' + ids.length + ' 筆' });
+      } else {
+        Items.selectedIds.forEach((id) => {
+          const item = Items.list.find((i) => i.id === id);
+          if (item) Items.submitPending('delete', { id }, `批次刪除 ${item.sku}`);
+        });
+        Items.selectedIds.clear();
+        this.updateBatchBar();
+      }
+    },
+    batchMove() {
+      if (!Items.selectedIds.size) return;
+      if (!Auth.canWrite()) {
+        alert('無權限');
+        return;
+      }
+      this.openBatchMoveModal();
+    },
+    openBatchMoveModal() {
+      let overlay = document.getElementById('batchMoveModal');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'batchMoveModal';
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `<div class="modal" style="max-width:420px">
+      <h2>🔀 批次移庫</h2>
+      <p style="font-size:13px;color:#5f6368;margin-bottom:10px">已選 <strong id="batchMoveCount">0</strong> 筆，請選擇目標儲位</p>
+      <div class="form-grid">
+        <div class="form-group"><label>區域</label><select id="bmZone" onchange="updateBatchMoveSlots()"></select></div>
+        <div class="form-group"><label>樓層</label><select id="bmFloor" onchange="updateBatchMoveSlots()"></select></div>
+        <div class="form-group full"><label>儲位</label><select id="bmSlot"></select></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeBatchMoveModal()">取消</button>
+        <button type="button" class="success" onclick="confirmBatchMove()">確認移庫</button>
+      </div>
+    </div>`;
+        overlay.addEventListener('click', (e) => {
+          if (e.target.id === 'batchMoveModal') this.closeBatchMoveModal && document.getElementById('batchMoveModal').classList.remove('show');
+        });
+        document.body.appendChild(overlay);
+      }
+      document.getElementById('batchMoveCount').textContent = Items.selectedIds.size;
+      const zoneSel = document.getElementById('bmZone');
+      zoneSel.innerHTML = Items.layout.zones.map((z) => `<option value="${z.id}">${escapeHtml(z.name)}</option>`).join('');
+      this.updateBatchMoveSlots();
+      overlay.classList.add('show');
+    },
+    updateBatchMoveSlots() {
+      const zoneId = document.getElementById('bmZone').value;
+      const zone = Items.layout.zones.find((z) => z.id === zoneId);
+      const floorSel = document.getElementById('bmFloor');
+      const slotSel = document.getElementById('bmSlot');
+      if (!zone) {
+        floorSel.innerHTML = '';
+        slotSel.innerHTML = '';
+        return;
+      }
+      const prevF = floorSel.value;
+      floorSel.innerHTML = Array.from({ length: zone.floors }, (_, i) => `<option value="${i + 1}">${i + 1}F</option>`).join('');
+      if (prevF && Number(prevF) <= zone.floors) floorSel.value = prevF;
+      const f = Number(floorSel.value) || 1;
+      slotSel.innerHTML = Array.from({ length: zone.slotsPerFloor }, (_, i) => {
+        const code = slotCode(zone.name, f, i + 1);
+        const st = Items.getSlotStatus(code);
+        return `<option value="${code}">${code} ${st === 'empty' ? '(空)' : '(有貨)'}</option>`;
+      }).join('');
+    },
+    confirmBatchMove() {
+      const loc = normLoc(document.getElementById('bmSlot').value);
+      if (!loc) {
+        alert('請選擇目標儲位');
+        return;
+      }
+      if (Auth.canDirectWrite()) {
+        const movedItems = [];
+        Items.list.forEach((i) => {
+          if (Items.selectedIds.has(i.id)) {
+            i.location = loc;
+            i.updatedAt = new Date().toISOString();
+            movedItems.push(i);
+          }
+        });
+        Items.selectedIds.clear();
+        this.updateBatchBar();
+        document.getElementById('batchMoveModal').classList.remove('show');
+        this.jumpMapToLocation(loc);
+        Items.commit({ upsert: movedItems, toast: '已移庫 ' + movedItems.length + ' 筆 → ' + loc });
+      } else {
+        Items.selectedIds.forEach((id) => {
+          const item = Items.list.find((i) => i.id === id);
+          if (item) Items.submitPending('edit', { id, location: loc }, `批次移庫 ${item.sku} → ${loc}`);
+        });
+        Items.selectedIds.clear();
+        this.updateBatchBar();
+        document.getElementById('batchMoveModal').classList.remove('show');
+      }
+    },
+
+    // Layout
+    openLayoutModal() {
+      if (!Auth.canWrite()) return;
+      document.getElementById('layoutModal').classList.add('show');
+      this.renderZoneList();
+    },
+    renderZoneList() {
+      document.getElementById('zoneList').innerHTML =
+        Items.layout.zones
+          .map((z) => {
+            const sw = z.color
+              ? `<span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:${escapeHtml(
+                  z.color
+                )};border:1px solid #ccc;vertical-align:middle;margin-right:6px"></span>`
+              : '';
+            return (
+              '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px"><span>' +
+              sw +
+              '<strong>' +
+              escapeHtml(z.name) +
+              '</strong> · ' +
+              z.floors +
+              'F · 每層 ' +
+              z.slotsPerFloor +
+              '</span>' +
+              (Auth.isAdmin()
+                ? '<button class="danger" style="padding:2px 8px;font-size:11px" onclick="removeZone(\'' + z.id + '\')">刪除</button>'
+                : '') +
+              '</div>'
+            );
+          })
+          .join('') || '<p style="color:#9aa0a6">尚無區域</p>';
+    },
+    addZone() {
+      if (!Auth.isAdmin()) {
+        alert('僅管理員可新增區域');
+        return;
+      }
+      const name = document.getElementById('newZoneName').value.trim();
+      const floors = Number(document.getElementById('newFloors').value) || 1;
+      const slots = Number(document.getElementById('newSlotsPerFloor').value) || 10;
+      const color = (document.getElementById('newZoneColor') || {}).value || '';
+      if (!name) {
+        alert('請輸入區域名稱');
+        return;
+      }
+      Items.layout.zones.push({
+        id: 'z_' + Date.now(),
+        name,
+        floors: Math.min(20, floors),
+        slotsPerFloor: Math.min(50, slots),
+        color: color || null
+      });
+      if (color) {
+        for (let f = 1; f <= Math.min(20, floors); f++) {
+          for (let s = 1; s <= Math.min(50, slots); s++) {
+            const code = slotCode(name, f, s);
+            if (!MapUI.slotColors[code]) MapUI.slotColors[code] = color;
+          }
+        }
+        save(KEYS.slotColors, MapUI.slotColors);
+      }
+      document.getElementById('newZoneName').value = '';
+      this.renderZoneList();
+    },
+    removeZone(id) {
+      if (Items.layout.zones.length <= 1) {
+        alert('至少保留一個區域');
+        return;
+      }
+      Items.layout.zones = Items.layout.zones.filter((z) => z.id !== id);
+      if (MapUI.currentZoneId === id) MapUI.currentZoneId = Items.layout.zones[0].id;
+      this.renderZoneList();
+    },
+    saveLayoutAndClose() {
+      Items.persistLayout();
+      if (!Items.layout.zones.find((z) => z.id === MapUI.currentZoneId))
+        MapUI.currentZoneId = Items.layout.zones[0] ? Items.layout.zones[0].id : '';
+      document.getElementById('layoutModal').classList.remove('show');
+      this.renderZoneTabs();
+      this.updateFloorSelect();
+      this.renderMap();
+      toast('格局已儲存', 'ok');
+    },
+    async clearAllData() {
+      if (!Auth.isAdmin()) {
+        alert('僅管理員可清空');
+        return;
+      }
+      if (!confirm('確定清除所有庫存資料？')) return;
+      const ids = Items.list.map((i) => i.id);
+      Items.list = [];
+      Items.currentPage = 1;
+      Items.commit({ removeIds: ids, toast: '已清空本機' });
+      if (Cloud.isReady() && ids.length) {
+        try {
+          await Cloud.client.from('warehouse_items').delete().neq('id', '');
+          toast('雲端庫存已清空', 'ok');
+        } catch (e) {
+          toast('雲端清空失敗', 'err');
+        }
+      }
+    },
+
+    // Compare
+    toggleCompareMode() {
+      Items.compareMode = !Items.compareMode;
+      Items.compareSelection = { a: null, b: null };
+      const btn = document.getElementById('compareBtn');
+      const panel = document.getElementById('comparePanel');
+      if (Items.compareMode) {
+        btn.textContent = '❌ 結束比對';
+        btn.classList.add('danger');
+        panel.classList.add('show');
+      } else {
+        btn.textContent = '🔀 比對';
+        btn.classList.remove('danger');
+        panel.classList.remove('show');
+      }
+      this.renderTable();
+      this.updateCompareDisplay();
+    },
+    selectForCompare(id) {
+      if (!Items.compareSelection.a) Items.compareSelection.a = id;
+      else if (!Items.compareSelection.b && id !== Items.compareSelection.a) Items.compareSelection.b = id;
+      else Items.compareSelection = { a: id, b: null };
+      this.updateCompareDisplay();
+    },
+    updateCompareDisplay() {
+      const a = Items.list.find((i) => i.id === Items.compareSelection.a);
+      const b = Items.list.find((i) => i.id === Items.compareSelection.b);
+      const render = (item, other) => {
+        if (!item) return '尚未選擇';
+        return [
+          ['SKU', 'sku'],
+          ['儲位', 'location'],
+          ['產品', 'productName'],
+          ['數量', 'quantity'],
+          ['單位', 'unit'],
+          ['散裝', 'bulkQty'],
+          ['散裝單位', 'bulkUnit'],
+          ['狀態', 'status'],
+          ['批號', 'batchNo'],
+          ['效期', 'expiryDate'],
+          ['備註', 'note']
+        ]
+          .map((pair) => {
+            const l = pair[0],
+              k = pair[1];
+            const v = item[k] != null ? item[k] : '-';
+            const o = other ? (other[k] != null ? other[k] : '-') : null;
+            const diff = other && String(v) !== String(o);
+            return (
+              '<div style="margin-bottom:4px"><strong>' +
+              l +
+              '：</strong><span class="' +
+              (diff ? 'diff' : '') +
+              '">' +
+              escapeHtml(String(v)) +
+              '</span></div>'
+            );
+          })
+          .join('');
+      };
+      document.getElementById('compareAContent').innerHTML = render(a, b);
+      document.getElementById('compareBContent').innerHTML = render(b, a);
+    },
+
+    // Extras
+    updateMarquee() {
+      let latest = null;
+      Items.list.forEach((i) => {
+        const t = i.updatedAt || i.createdAt;
+        if (t && (!latest || t > latest)) latest = t;
+      });
+      let dateStr = '尚無異動';
+      if (latest) {
+        try {
+          dateStr = new Date(latest).toLocaleString('zh-TW', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch (e) {
+          dateStr = latest;
+        }
+      }
+      const el = document.getElementById('marqueeText');
+      if (el) el.textContent = '請依庫位原有編號入庫　｜　最近更新：' + dateStr + '　｜　Session ' + SESSION_TTL_MS / 3600000 + 'h　｜　智慧倉儲';
+    },
+    toggleExpiryCheck() {
+      this.expiryCheckOn = document.getElementById('expiryCheckToggle').checked;
+      save(KEYS.expiryOn, this.expiryCheckOn);
+      if (this.expiryCheckOn) this.runExpiryCheck();
+      else document.getElementById('expiryBanner').style.display = 'none';
+    },
+    setExpiryRange(range) {
+      this.currentExpiryRange = Number(range) || 30;
+      document.querySelectorAll('.exp-range-btn').forEach((b) => {
+        b.classList.toggle('active', Number(b.dataset.range) === this.currentExpiryRange);
+      });
+      this.runExpiryCheck();
+      Items.statsFilter = 'near';
+      Items.scrapFilter = false;
+      this.updateScrapBtn();
+      Items.currentPage = 1;
+      window._expiryFilterDays = this.currentExpiryRange;
+      this.renderTable();
+      this.renderStats();
+    },
+    runExpiryCheck() {
+      if (!this.expiryCheckOn) {
+        document.getElementById('expiryBanner').style.display = 'none';
+        return;
+      }
+      const range = this.currentExpiryRange || 30;
+      const matched = Items.list.filter((i) => {
+        const d = daysUntil(i.expiryDate);
+        return d !== null && d >= 0 && d <= range;
+      });
+      const banner = document.getElementById('expiryBanner');
+      const msg = document.getElementById('expiryBannerMsg');
+      if (!matched.length) {
+        if (msg) msg.textContent = '✅ 全庫檢查完成：目前沒有 ' + range + ' 日內到期的商品';
+        if (banner) banner.style.display = 'block';
+        return;
+      }
+      const urgent = matched.filter((i) => daysUntil(i.expiryDate) <= 30);
+      const mid = matched.filter((i) => {
+        const d = daysUntil(i.expiryDate);
+        return d > 30 && d <= 60;
+      });
+      const far = matched.filter((i) => {
+        const d = daysUntil(i.expiryDate);
+        return d > 60 && d <= 90;
+      });
+      let text = '⚠️ 效期提醒（≤' + range + '日）：共 ' + matched.length + ' 筆';
+      if (urgent.length) text += '　🔴 即期(≤30) ' + urgent.length;
+      if (mid.length) text += '　🟠 31-60日 ' + mid.length;
+      if (far.length) text += '　🟡 61-90日 ' + far.length;
+      if (msg) msg.textContent = text;
+      if (banner) banner.style.display = 'block';
+    },
+    trackSearch(q) {
+      if (!q || q.length < 1) return;
+      this.searchHeat[q] = (this.searchHeat[q] || 0) + 1;
+      Items.list.forEach((i) => {
+        if (
+          (i.location || '').toLowerCase().includes(q) ||
+          (i.productName || '').toLowerCase().includes(q) ||
+          (i.sku || '').toLowerCase().includes(q)
+        ) {
+          const k = 'loc:' + (i.location || '');
+          this.searchHeat[k] = (this.searchHeat[k] || 0) + 1;
+          const pk = 'prod:' + (i.sku || '');
+          this.searchHeat[pk] = (this.searchHeat[pk] || 0) + 1;
+        }
+      });
+      save(KEYS.searchHeat, this.searchHeat);
+    },
+    showHeatAnalysis() {
+      const locEntries = Object.entries(this.searchHeat)
+        .filter(([k]) => k.startsWith('loc:'))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      const prodEntries = Object.entries(this.searchHeat)
+        .filter(([k]) => k.startsWith('prod:'))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      let msg = '📊 搜尋熱區分析（本機統計）\n\n【熱門儲位】\n';
+      if (!locEntries.length) msg += '尚無資料\n';
+      else
+        locEntries.forEach(([k, v], i) => {
+          msg += i + 1 + '. ' + k.replace('loc:', '') + '（' + v + ' 次）\n';
+        });
+      msg += '\n【熱門產品 SKU】\n';
+      if (!prodEntries.length) msg += '尚無資料\n';
+      else
+        prodEntries.forEach(([k, v], i) => {
+          msg += i + 1 + '. ' + k.replace('prod:', '') + '（' + v + ' 次）\n';
+        });
+      const emptySlots = [];
+      Items.layout.zones.forEach((z) => {
+        for (let f = 1; f <= z.floors; f++) {
+          for (let s = 1; s <= z.slotsPerFloor; s++) {
+            const code = slotCode(z.name, f, s);
+            if (!Items.getInSlot(code).length) emptySlots.push(code);
+          }
+        }
+      });
+      msg += '\n【建議空庫位】（前 5 個空位）\n' + (emptySlots.slice(0, 5).join('\n') || '無空位');
+      alert(msg);
+    },
+    openSlotColorPicker(code) {
+      this.colorPickSlot = code;
+      let overlay = document.getElementById('colorPickModal');
+      const PRESET = [
+        '#ef4444',
+        '#f97316',
+        '#f59e0b',
+        '#eab308',
+        '#84cc16',
+        '#22c55e',
+        '#14b8a6',
+        '#06b6d4',
+        '#3b82f6',
+        '#6366f1',
+        '#8b5cf6',
+        '#a855f7',
+        '#ec4899',
+        '#f43f5e',
+        '#64748b',
+        '#1e293b',
+        '#fef3c7',
+        '#dbeafe',
+        '#dcfce7',
+        '#fce7f3'
+      ];
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'colorPickModal';
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `<div class="modal" style="max-width:360px">
+      <h2>🎨 庫位配色</h2>
+      <p style="font-size:13px;color:#5f6368;margin-bottom:10px" id="colorPickTarget"></p>
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">⭐ 我的最愛</div>
+      <div class="fav-colors" id="favColors"></div>
+      <div style="font-size:12px;font-weight:600;margin:8px 0 6px">色票</div>
+      <div id="colorPalette" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:12px">自訂：</label>
+        <input type="color" id="colorCustom" value="#6366f1" style="width:48px;height:32px;border:none;cursor:pointer">
+        <button type="button" class="outline" style="padding:4px 10px;font-size:12px" onclick="applyCustomColor()">套用</button>
+        <button type="button" class="secondary" style="padding:4px 10px;font-size:12px" onclick="saveToFavorite()">存入最愛</button>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="clearSlotColor()">清除顏色</button>
+        <button type="button" class="secondary" onclick="closeColorPick()">取消</button>
+      </div>
+    </div>`;
+        overlay.addEventListener('click', (e) => {
+          if (e.target.id === 'colorPickModal') this.closeColorPick();
+        });
+        document.body.appendChild(overlay);
+      }
+      document.getElementById('colorPickTarget').textContent =
+        '儲位：' + code + (MapUI.slotColors[code] ? '（目前已有自訂色）' : '');
+      this.renderFavColors();
+      document.getElementById('colorPalette').innerHTML = PRESET.map(
+        (c) =>
+          `<button type="button" title="${c}" onclick="pickPresetColor('${c}')" style="width:100%;aspect-ratio:1;border-radius:8px;border:2px solid ${
+            MapUI.slotColors[code] === c ? '#000' : '#ccc'
+          };background:${c};cursor:pointer"></button>`
+      ).join('');
+      overlay.classList.add('show');
+    },
+    renderFavColors() {
+      const el = document.getElementById('favColors');
+      if (!el) return;
+      el.innerHTML =
+        this.colorFavorites
+          .map(
+            (c, i) =>
+              `<button type="button" class="fav-slot filled" style="background:${c || '#eee'}" title="最愛 ${
+                i + 1
+              }" onclick="pickPresetColor('${c}')" oncontextmenu="event.preventDefault();clearFavorite(${i})"></button>`
+          )
+          .join('') + '<span style="font-size:11px;color:#94a3b8">右鍵清除</span>';
+    },
+    saveToFavorite() {
+      const c = document.getElementById('colorCustom').value;
+      if (this.colorFavorites.includes(c)) {
+        alert('此色已在最愛中');
+        return;
+      }
+      const emptyIdx = this.colorFavorites.findIndex((x) => !x || x === '#eee');
+      const target = emptyIdx >= 0 ? emptyIdx : 0;
+      this.colorFavorites[target] = c;
+      while (this.colorFavorites.length < 5) this.colorFavorites.push('#eee');
+      this.colorFavorites = this.colorFavorites.slice(0, 5);
+      save(KEYS.colorFavs, this.colorFavorites);
+      this.renderFavColors();
+      alert('已存入我的最愛');
+    },
+    clearFavorite(i) {
+      this.colorFavorites[i] = '#eee';
+      save(KEYS.colorFavs, this.colorFavorites);
+      this.renderFavColors();
+    },
+    pickPresetColor(c) {
+      if (!this.colorPickSlot || !c || c === '#eee') return;
+      MapUI.slotColors[this.colorPickSlot] = c;
+      save(KEYS.slotColors, MapUI.slotColors);
+      this.renderMap();
+      this.closeColorPick();
+    },
+    applyCustomColor() {
+      if (!this.colorPickSlot) return;
+      const c = document.getElementById('colorCustom').value;
+      MapUI.slotColors[this.colorPickSlot] = c;
+      save(KEYS.slotColors, MapUI.slotColors);
+      this.renderMap();
+      this.closeColorPick();
+    },
+    clearSlotColor() {
+      if (!this.colorPickSlot) return;
+      delete MapUI.slotColors[this.colorPickSlot];
+      save(KEYS.slotColors, MapUI.slotColors);
+      this.renderMap();
+      this.closeColorPick();
+    },
+    closeColorPick() {
+      const el = document.getElementById('colorPickModal');
+      if (el) el.classList.remove('show');
+      this.colorPickSlot = null;
+    },
+    initExtraFeatures() {
+      const toggle = document.getElementById('expiryCheckToggle');
+      if (toggle) toggle.checked = !!this.expiryCheckOn;
+      this.updateMarquee();
+      if (this.expiryCheckOn) this.runExpiryCheck();
+      else {
+        const banner = document.getElementById('expiryBanner');
+        if (banner) banner.style.display = 'none';
+      }
+      const tb = document.querySelector('.toolbar');
+      if (tb && !document.getElementById('btnHeat')) {
+        const b = document.createElement('button');
+        b.id = 'btnHeat';
+        b.className = 'outline';
+        b.textContent = '🔥 熱區分析';
+        b.onclick = () => this.showHeatAnalysis();
+        tb.appendChild(b);
+      }
+    },
+    toggleMapTools() {
+      const panel = document.getElementById('mapToolsPanel');
+      const arrow = document.getElementById('mapToolsArrow');
+      if (!panel) return;
+      panel.classList.toggle('collapsed');
+      const open = !panel.classList.contains('collapsed');
+      if (arrow) arrow.textContent = open ? '▼' : '▶';
+      localStorage.setItem(KEYS.mapTools, open ? '1' : '0');
+    },
+    toggleInfoPanel() {
+      const panel = document.getElementById('infoPanel');
+      const arrow = document.getElementById('infoToggleArrow');
+      if (!panel) return;
+      panel.classList.toggle('collapsed');
+      const open = !panel.classList.contains('collapsed');
+      if (arrow) arrow.textContent = open ? '▼' : '▶';
+      localStorage.setItem(KEYS.infoPanel, open ? '1' : '0');
+    },
+    openMoreTools() {
+      const body = document.getElementById('moreToolsBody');
+      const extra = document.getElementById('toolbarExtra');
+      if (body && extra) {
+        body.innerHTML = '';
+        extra.querySelectorAll('button').forEach((btn) => {
+          const b = btn.cloneNode(true);
+          b.style.display = '';
+          b.onclick = function () {
+            btn.click();
+          };
+          body.appendChild(b);
+        });
+        const heat = document.getElementById('btnHeat');
+        if (heat) {
+          const b = heat.cloneNode(true);
+          b.onclick = function () {
+            heat.click();
+            document.getElementById('moreToolsModal').classList.remove('show');
+          };
+          body.appendChild(b);
+        }
+      }
+      document.getElementById('moreToolsModal').classList.add('show');
+    },
+    bindTouchGestures() {
+      let startX = 0,
+        startY = 0,
+        mode = null,
+        targetEl = null;
+      const detail = () => document.getElementById('slotDetail');
+      document.addEventListener(
+        'touchstart',
+        (e) => {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+          mode = null;
+          targetEl = null;
+          const d = detail();
+          if (d && d.classList.contains('show') && e.target.closest('.slot-detail')) {
+            mode = 'detail';
+            targetEl = d;
+            return;
+          }
+          const card = e.target.closest('.inv-card');
+          if (card && !e.target.closest('button') && !e.target.closest('a') && !e.target.closest('input')) {
+            mode = 'card';
+            targetEl = card;
+            return;
+          }
+          if (e.target.closest('.map-grid-wrapper') || e.target.closest('.map-grid') || e.target.closest('.slot')) {
+            mode = 'map';
+            targetEl = document.getElementById('mapGrid');
+            return;
+          }
+        },
+        { passive: true }
+      );
+      document.addEventListener(
+        'touchmove',
+        (e) => {
+          if (!mode || !targetEl) return;
+          const dx = e.touches[0].clientX - startX;
+          const dy = e.touches[0].clientY - startY;
+          if ((mode === 'detail' || mode === 'card') && Math.abs(dx) > Math.abs(dy) && dx > 8) {
+            targetEl.classList.add('swiping');
+            targetEl.style.transform = 'translateX(' + dx + 'px)';
+            targetEl.style.opacity = String(Math.max(0.15, 1 - dx / 180));
+          }
+        },
+        { passive: true }
+      );
+      document.addEventListener('touchend', (e) => {
+        if (!mode) return;
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        if (mode === 'detail') {
+          if (dx > 80) this.hideSlotDetail();
+          else if (targetEl) {
+            targetEl.style.transform = '';
+            targetEl.style.opacity = '';
+            targetEl.classList.remove('swiping');
+          }
+        } else if (mode === 'card' && targetEl) {
+          if (dx > 90) {
+            const el = targetEl;
+            const h = el.offsetHeight;
+            el.style.transition = 'transform .22s ease,opacity .22s ease';
+            el.style.transform = 'translateX(110%)';
+            el.style.opacity = '0';
+            setTimeout(() => {
+              el.style.transition = 'max-height .28s ease,margin .28s ease,padding .28s ease,border .28s ease';
+              el.style.maxHeight = h + 'px';
+              el.style.overflow = 'hidden';
+              requestAnimationFrame(() => {
+                el.style.maxHeight = '0';
+                el.style.marginTop = '0';
+                el.style.marginBottom = '0';
+                el.style.paddingTop = '0';
+                el.style.paddingBottom = '0';
+                el.style.borderWidth = '0';
+              });
+              setTimeout(() => {
+                if (el.parentNode) el.remove();
+              }, 300);
+            }, 200);
+          } else {
+            targetEl.style.transform = '';
+            targetEl.style.opacity = '';
+            targetEl.classList.remove('swiping');
+          }
+        } else if (mode === 'map') {
+          if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+            const zone = Items.layout.zones.find((z) => z.id === MapUI.currentZoneId);
+            if (zone && zone.floors > 1) {
+              if (dx < 0 && MapUI.currentFloor < zone.floors) {
+                MapUI.currentFloor++;
+                document.getElementById('floorSelect').value = String(MapUI.currentFloor);
+                MapUI.selectedSlotCode = null;
+                this.hideSlotDetail();
+                this.renderMap();
+              } else if (dx > 0 && MapUI.currentFloor > 1) {
+                MapUI.currentFloor--;
+                document.getElementById('floorSelect').value = String(MapUI.currentFloor);
+                MapUI.selectedSlotCode = null;
+                this.hideSlotDetail();
+                this.renderMap();
+              }
+            }
+          }
+        }
+        mode = null;
+        targetEl = null;
+      });
+    }
+  };
+
+  // Export
+  global.SW = { CryptoUtil, Auth, Cloud, OfflineQueue, Items, MapUI, App, KEYS, toast };
+  global.App = App;
+
+  // Boot when DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => App.boot());
+  } else {
+    App.boot();
+  }
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+</body>
+</html>
