@@ -1416,12 +1416,22 @@ create policy "profiles_self_upd" on warehouse_profiles for update using (auth.u
       Auth.touchSession();
     },
     submitPending(action, payload, summary) {
+      const by = (Auth.session && Auth.session.username) || '';
+      // 依 action + summary + by 去重，避免同一申請重複送出
+      const exists = this.pending.some(
+        (p) => p.action === action && p.summary === summary && p.by === by
+      );
+      if (exists) {
+        toast('相同申請已存在，請等待審核', 'info', 2500);
+        if (typeof App !== 'undefined' && App.updatePendingBadge) App.updatePendingBadge();
+        return;
+      }
       this.pending.push({
         id: uid('p'),
         action,
         payload,
         summary,
-        by: Auth.session.username,
+        by,
         at: new Date().toLocaleString('zh-TW')
       });
       this.persistPending();
@@ -1670,12 +1680,20 @@ create policy "profiles_self_upd" on warehouse_profiles for update using (auth.u
             if (m.key === 'users' && m.value) Auth.mergeUsersFromCloud(m.value);
             if (m.key === 'pending' && m.value) {
               const cloudP = Array.isArray(m.value) ? m.value : [];
-              const pmap = new Map();
-              Items.pending.forEach((p) => pmap.set(p.id, p));
-              cloudP.forEach((p) => {
-                if (p && p.id) pmap.set(p.id, p);
-              });
-              Items.pending = Array.from(pmap.values());
+              // 依 id 與「action+summary+by」雙重去重，避免多裝置／重複送出造成待審核重複
+              const byId = new Map();
+              const byContent = new Map();
+              const keyOf = (p) => `${p.action || ''}|${p.summary || ''}|${p.by || ''}`;
+              const put = (p) => {
+                if (!p || !p.id) return;
+                const ck = keyOf(p);
+                if (byContent.has(ck)) return; // 同內容只保留一筆
+                byContent.set(ck, p.id);
+                byId.set(p.id, p);
+              };
+              Items.pending.forEach(put);
+              cloudP.forEach(put);
+              Items.pending = Array.from(byId.values());
               save(KEYS.pending, Items.pending);
             }
           });
